@@ -207,7 +207,7 @@ VITE_API_BASE_URL=http://localhost:8080
 
 ## 👨‍💻 Author
 
-**Avnesh Kumar**
+**Avni**
 
 ---
 
