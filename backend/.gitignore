@@ -1,0 +1,37 @@
+# ========================
+# ENV FILES (IMPORTANT)
+# ========================
+.env
+**/.env
+
+# ========================
+# BACKEND (Spring Boot)
+# ========================
+backend/target/
+backend/.env
+*.class
+
+# ========================
+# FRONTEND (React)
+# ========================
+frontend/node_modules/
+frontend/.env
+frontend/build/
+
+# ========================
+# ML SERVICE (Python)
+# ========================
+ml-service/__pycache__/
+ml-service/venv/
+ml-service/.env
+
+# ========================
+# IDE FILES
+# ========================
+.vscode/
+.idea/
+
+# ========================
+# LOGS
+# ========================
+*.log
