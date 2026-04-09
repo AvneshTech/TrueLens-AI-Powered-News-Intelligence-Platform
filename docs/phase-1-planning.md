@@ -1,48 +1,33 @@
 # 🧠 Phase 1 – Planning & Architecture
 
-## 📌 Goal
-Define system architecture and project structure before development.
+<p align="center">
+  <b>Building the foundation of TrueLens with scalable architecture & clear system design</b>
+</p>
 
-## ✅ Final Features (Implemented)
-- JWT Authentication with Refresh Token
-- Role-based access (Admin / User)
-- News Aggregation system
-- Fake News Detection (ML API)
-- Notes Management (CRUD)
-- AI Chat Assistant (HuggingFace)
-- Dashboard Analytics
-- Prediction History Tracking
+---
+
+## 🎯 Objective
+Design a **robust, scalable, and secure architecture** before starting development.
+
+---
+
+## ✨ Core Features Finalized
+
+- 🔐 **JWT Authentication** (Access + Refresh Token)
+- 👤 **Role-Based Access Control** (Admin / User)
+- 📰 **News Aggregation System**
+- 🤖 **Fake News Detection (ML Integration)**
+- 📝 **Notes Management System (CRUD + Export)**
+- 💬 **AI Chat Assistant (HuggingFace API)**
+- 📊 **Dashboard Analytics**
+- 🕘 **Prediction History Tracking**
+
+---
 
 ## 🏗️ System Architecture
-- Frontend: React (Vite + TypeScript + Tailwind)
-- Backend: Spring Boot (Java)
-- ML Service: Python (Flask)
-- Database: MySQL
-- Communication: REST APIs (Microservices)
 
-## 🗄️ Database Tables
-- User
-- Note
-- PredictionHistory
-- RefreshToken
-
-## ⚙️ Project Setup
-- Created modular folder structure
-
-### Backend Architecture
-- Controller
-- Service
-- Repository
-- DTO
-- Security
-
-### Frontend Structure
-- Pages
-- Components
-- Context API
-- Services
-
-## 🎯 Deliverables
-- Clean architecture design
-- Ready project structure
-- GitHub initialized
+```mermaid
+graph TD
+A[React Frontend] --> B[Spring Boot Backend]
+B --> C[Flask ML Service]
+B --> D[MySQL Database]

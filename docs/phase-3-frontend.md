@@ -1,44 +1,23 @@
 # 🎨 Phase 3 – Frontend Development
 
-## 📌 Goal
-Develop a scalable and responsive UI using React
+<p align="center">
+  <b>Building a modern, responsive, and user-friendly UI using React</b>
+</p>
 
-## 🔐 Authentication System
-- Login & Register pages
-- JWT token handling
-- AuthContext for global state
-- ProtectedRoute & AdminRoute implemented
+---
 
-## 🧱 Layout System
-- Navbar + Sidebar layout
-- DashboardLayout & AuthLayout
-- Reusable UI components (ShadCN based)
+## 🎯 Objective
+Develop a **scalable and interactive frontend** with secure authentication, clean UI/UX, and seamless backend integration.
 
-## 📄 Pages Implemented
-- Dashboard
-- News Feed
-- Fake News Detector
-- Notes (CRUD)
-- Prediction History
-- Analytics Dashboard
-- Admin Panel
-- Chat Assistant (AI)
-- Sentiment Analysis
-- Profile & Settings
+---
 
-## ⚙️ Features
-- API integration using Axios
-- Search & filtering
-- Real-time UI updates
-- Error handling & loaders
-- Responsive design using Tailwind
+## 🏗️ Frontend Architecture
 
-## 📦 Services Layer
-- authService
-- apiService
-- noteService
+The frontend follows a **component-based architecture** with centralized state management:
 
-## 🎯 Deliverables
-- Fully functional frontend
-- Secure routing system
-- Clean UI/UX with reusable components
+```mermaid
+graph TD
+A[Pages] --> B[Components]
+B --> C[Services]
+C --> D[Backend APIs]
+A --> E[Context API]

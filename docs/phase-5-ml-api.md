@@ -1,32 +1,20 @@
 # 🔗 Phase 5 – ML API & Backend Integration
 
-## 📌 Goal
-Integrate ML model with backend services
+<p align="center">
+  <b>Connecting Machine Learning with Backend to enable real-time intelligent predictions</b>
+</p>
 
-## 🐍 ML API
-- Flask-based API
-- `/predict` endpoint
+---
 
-### Returns:
-- Prediction (Fake / Real)
-- Confidence score
+## 🎯 Objective
+Integrate the **ML model as a microservice** with the backend to enable **real-time fake news detection and AI-powered features**.
 
-## 🔗 Backend Integration
-- MlService calls ML API
-- DetectionController handles requests
-- Stores results in PredictionHistory
+---
 
-## 🧠 Additional AI Features
-- HuggingFaceService (Chat Assistant)
-- FactCheckService
-- Sentiment Analysis API
+## 🐍 ML API (Flask Microservice)
 
-## 📊 Controllers Implemented
-- DetectionController
-- ChatController
-- FactCheckController
-- AnalyticsController
+- ⚙️ Built using **Flask (Python)**
+- 📡 Exposed REST endpoint:
 
-## 🎯 Deliverables
-- End-to-end ML integration
-- Prediction stored & displayed
+```http
+POST /predict
