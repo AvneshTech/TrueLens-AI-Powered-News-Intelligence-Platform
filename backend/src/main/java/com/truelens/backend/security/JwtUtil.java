@@ -37,6 +37,14 @@ public class JwtUtil {
         return getClaims(token).getSubject();
     }
 
+    // ⏰ Extract Expiry (for blacklist TTL)
+    public java.time.LocalDateTime extractExpiry(String token) {
+        java.util.Date exp = getClaims(token).getExpiration();
+        return exp.toInstant()
+                .atZone(java.time.ZoneId.systemDefault())
+                .toLocalDateTime();
+    }
+
     // 🧠 Extract Role
     public String extractRole(String token) {
         Object role = getClaims(token).get("role");

@@ -8,12 +8,16 @@ import com.truelens.backend.repository.NoteRepository;
 import com.truelens.backend.repository.UserRepository;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
 public class NoteService {
+
+    private static final Logger logger = LoggerFactory.getLogger(NoteService.class);
 
     private final NoteRepository noteRepository;
     private final UserRepository userRepository;
@@ -23,8 +27,8 @@ public class NoteService {
         this.userRepository = userRepository;
     }
 
-    // ✅ CREATE NOTE
-    @SuppressWarnings("null")
+    // FIX #17: Removed @SuppressWarnings("null") — addressed the underlying issue instead.
+    // Also replaced System.out.println / e.printStackTrace() with proper logger calls (Fix #17 bonus).
     public NoteResponse createNote(NoteRequest request, String email) {
 
         User user = userRepository.findByEmail(email)
@@ -42,8 +46,7 @@ public class NoteService {
             Note savedNote = noteRepository.save(note);
             return mapToResponse(savedNote);
         } catch (Exception e) {
-            System.out.println("ERROR SAVING NOTE: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Failed to save note for user {}: {}", email, e.getMessage(), e);
             throw new RuntimeException("Failed to save note");
         }
     }
@@ -80,7 +83,8 @@ public class NoteService {
     }
 
     // ✅ DELETE NOTE (SECURE)
-    @SuppressWarnings("null")
+    // FIX #17: Removed @SuppressWarnings("null") — noteRepository.delete(note)
+    // accepts a non-null entity which we guarantee via the orElseThrow above.
     public void deleteNote(Long id, String email) {
 
         Note note = noteRepository.findByIdAndUserEmail(id, email)

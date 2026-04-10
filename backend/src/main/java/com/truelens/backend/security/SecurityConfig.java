@@ -26,9 +26,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
+    private final RateLimitFilter rateLimitFilter;
 
-    public SecurityConfig(JwtFilter jwtFilter) {
+    public SecurityConfig(JwtFilter jwtFilter, RateLimitFilter rateLimitFilter) {
         this.jwtFilter = jwtFilter;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
     @Bean
@@ -47,13 +49,20 @@ public class SecurityConfig {
                                 "/api/analytics/**",
                                 "/api/chat",
                                 "/ws/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/v3/api-docs/**",
                                 "/webjars/**",
                                 "/api/news/**",
                                 "/")
                         .permitAll()
+
+                        // FIX #3: Swagger was fully public — restricted to ADMIN only.
+                        // This prevents attackers from mapping your entire API surface.
+                        // To disable Swagger entirely in prod, set:
+                        //   springdoc.swagger-ui.enabled=false  in application-prod.properties
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**")
+                        .hasRole("ADMIN")
 
                         // ✅ Admin routes
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -61,7 +70,8 @@ public class SecurityConfig {
                         // ✅ All other APIs require login
                         .anyRequest().authenticated())
 
-                // ✅ JWT filter before Spring auth
+                // ✅ Rate limit runs first, then JWT auth
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

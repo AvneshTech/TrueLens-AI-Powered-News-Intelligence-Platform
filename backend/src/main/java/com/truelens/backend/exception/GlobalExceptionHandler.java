@@ -19,7 +19,8 @@ public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @SuppressWarnings("null")
+    // FIX #17: Removed @SuppressWarnings("null"). ResponseEntity.status(status).body(resp)
+    // is always non-null; the warning was a false positive from the generic type parameter.
     private <T> ResponseEntity<ApiResult<T>> wrap(
             boolean success, String message, T data, HttpStatus status) {
 

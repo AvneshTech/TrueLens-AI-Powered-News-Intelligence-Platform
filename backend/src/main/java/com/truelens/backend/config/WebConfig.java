@@ -1,24 +1,21 @@
 
 package com.truelens.backend.config;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.lang.NonNull;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
 
+/**
+ * FIX #16: WebConfig previously defined its own CORS mapping via addCorsMappings(),
+ * which conflicted with the CorsConfigurationSource bean in SecurityConfig.
+ *
+ * Having two CORS configurations is dangerous: they can produce inconsistent
+ * behaviour depending on filter chain ordering, and WebConfig was allowing
+ * allowedMethods("*") while SecurityConfig restricted to a specific list.
+ *
+ * Resolution: all CORS rules are now centralised in SecurityConfig.corsConfigurationSource().
+ * This class is kept as a placeholder so the package structure stays intact.
+ */
 @Configuration
 public class WebConfig {
-
-    @Bean
-    public WebMvcConfigurer corsConfigurer() {
-        return new WebMvcConfigurer() {
-            @Override
-            public void addCorsMappings(@NonNull CorsRegistry registry) {
-                registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:5173")
-                        .allowedMethods("*");
-            }
-        };
-    }
+    // CORS is configured centrally in SecurityConfig.corsConfigurationSource()
 }
+

@@ -59,7 +59,7 @@ public class FactCheckService {
         if (title == null || title.trim().isEmpty()) {
             return FactCheckResponse.builder()
                     .verified(false)
-                    .source("Content Analysis")
+                    .source("Heuristic Keyword Analysis")
                     .summary("Empty or null content cannot be verified")
                     .build();
         }
@@ -115,18 +115,21 @@ public class FactCheckService {
             reasons.append("ALL CAPS words indicate sensationalism. ");
         }
 
-        // Determine verification status based on risk score
-        boolean isVerified = riskScore < 3; // Threshold for fake news
+        // FIX #18: Was labelled "AI Content Analysis" — misleading because this service
+        // performs simple keyword/pattern matching, not ML inference. Calling it "AI"
+        // erodes user trust when the simplistic heuristic produces false positives.
+        // Renamed to accurately describe what it actually does.
+        String source = "Heuristic Keyword Analysis";
+        boolean isVerified = riskScore < 3;
         String summary;
-        String source = "AI Content Analysis";
 
         if (isVerified) {
-            summary = "Content appears credible based on linguistic analysis. " +
-                     "However, always verify with multiple trusted sources.";
+            summary = "No obvious sensationalism or clickbait patterns detected. " +
+                     "This is a basic heuristic check — always verify with multiple trusted sources.";
         } else {
-            summary = "Content shows signs of potential misinformation. " +
+            summary = "Possible sensationalism detected: " +
                      reasons.toString().trim() +
-                     " Please verify with reputable fact-checking sources.";
+                     " This is a heuristic check only — please verify with reputable fact-checking sources.";
         }
 
         return FactCheckResponse.builder()

@@ -93,8 +93,8 @@ public class AuthController {
 
         String email = jwtUtil.extractEmail(token);
 
-        // blacklist access token
-        blacklistService.blacklistToken(token);
+        // blacklist access token (persisted with its expiry so purge job can clean it up)
+        blacklistService.blacklistToken(token, jwtUtil.extractExpiry(token));
 
         // delete refresh token
         refreshTokenService.deleteByEmail(email);

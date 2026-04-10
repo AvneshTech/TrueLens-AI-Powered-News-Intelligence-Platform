@@ -17,10 +17,6 @@ true["label"] = 1
 df = pd.concat([fake, true])
 df = df[['text', 'label']]
 
-df = df.sample(frac=1).reset_index(drop=True)
-
-model = LogisticRegression(max_iter=300, class_weight='balanced')
-
 print("🧹 Cleaning text...")
 df['text'] = df['text'].apply(clean_text)
 

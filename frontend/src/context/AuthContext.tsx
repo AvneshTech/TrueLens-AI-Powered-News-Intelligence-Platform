@@ -114,10 +114,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       authAPI.logout(token).catch(() => {});
     }
 
+    // FIX #10: Previously only "token" and "refreshToken" were removed.
+    // The "user" object was left behind in storage, so on a shared device the
+    // next person opening the app would find stale user data until a page reload.
     localStorage.removeItem("token");
     localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("refreshToken");
+    sessionStorage.removeItem("user");
     setUser(null);
   };
 

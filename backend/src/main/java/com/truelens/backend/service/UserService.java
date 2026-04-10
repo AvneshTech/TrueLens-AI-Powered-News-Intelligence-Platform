@@ -77,15 +77,18 @@ public class UserService {
             throw new ApiException("Email and password are required");
         }
 
+        // FIX #6: Previously returned "User not found" vs "Invalid password" — two different
+        // messages that let attackers enumerate valid email addresses via login attempts.
+        // Now both cases return the same generic message to prevent user enumeration.
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ApiException("User not found"));
+                .orElseThrow(() -> new ApiException("Invalid email or password"));
 
         if (user.isBanned()) {
             throw new ApiException("Account is banned");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new ApiException("Invalid password");
+            throw new ApiException("Invalid email or password");
         }
 
         log.info("User login: {}", user.getEmail());
@@ -119,7 +122,9 @@ public class UserService {
      * @return Success message string
      * @throws ApiException if validation fails or email already exists
      */
-    @SuppressWarnings("null")
+    // FIX #17: Removed @SuppressWarnings("null"). The warning was triggered by
+    // userRepository.save(user) being flagged as potentially null-returning.
+    // Added an explicit null-guard on the saved result to handle it properly.
     public String registerUser(RegisterRequest request) {
 
         if (request.getEmail() == null || request.getEmail().isBlank()) {

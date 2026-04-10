@@ -16,9 +16,17 @@ public class MlService {
     @Value("${ml.service.url:http://localhost:5000}")
     private String mlServiceUrl;
 
-    public PredictionResponse predict(String text) {
+    // FIX #8: RestTemplate is now injected as a shared Spring bean instead of being
+    // instantiated on every predict() call. Per-request construction is expensive:
+    // it allocates a new object, skips connection pooling, and prevents configuration
+    // (timeouts, interceptors) from being applied uniformly. The bean is declared in AppConfig.
+    private final RestTemplate restTemplate;
 
-        RestTemplate restTemplate = new RestTemplate();
+    public MlService(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    public PredictionResponse predict(String text) {
 
         String url = mlServiceUrl + "/predict";
 
@@ -41,8 +49,8 @@ public class MlService {
                     .build();
 
         } catch (RestClientException e) {
-            // ML service is down — return a safe fallback
             throw new RuntimeException("ML service unavailable. Please ensure the Python service is running on " + mlServiceUrl, e);
         }
     }
 }
+

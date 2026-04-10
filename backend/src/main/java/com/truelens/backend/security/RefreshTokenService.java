@@ -20,7 +20,10 @@ public class RefreshTokenService {
     }
 
     // ✅ Create new refresh token
-    @SuppressWarnings("null")
+    // FIX #17: Removed @SuppressWarnings("null"). The warning was triggered because
+    // some IDE/tooling marks JpaRepository.save() as potentially null-returning.
+    // In practice, save() on a new (non-null) entity always returns the saved entity.
+    // The input `email` is guaranteed non-null by all callers (JWT-authenticated).
     public RefreshToken createToken(String email) {
 
         repository.deleteByEmail(email);

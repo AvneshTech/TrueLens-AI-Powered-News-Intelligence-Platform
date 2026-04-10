@@ -37,17 +37,20 @@ import jakarta.validation.constraints.Size;
 public class RegisterRequest {
 
     @NotBlank(message = "Full name is required")
-    @Size(min = 2, message = "Full name must be at least 2 characters")
+    @Size(min = 2, max = 100, message = "Full name must be between 2 and 100 characters")
     @Schema(description = "User's full name", example = "Avnesh Kumar")
     private String fullName;
 
     @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
+    // FIX #11: Added max = 255 — without an upper bound an attacker could submit
+    // arbitrarily large strings, causing DB column overflow or memory pressure.
+    @Size(max = 255, message = "Email must not exceed 255 characters")
     @Schema(example = "example@gmail.com", description = "User email address")
     private String email;
 
     @NotBlank(message = "Password is required")
-    @Size(min = 6, message = "Password must be at least 6 characters")
+    @Size(min = 6, max = 128, message = "Password must be between 6 and 128 characters")
     @Schema(example = "abcd123", description = "User password")
     private String password;
 }
