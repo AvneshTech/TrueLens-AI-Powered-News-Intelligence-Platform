@@ -7,7 +7,7 @@
 # ========================
 # BACKEND (Spring Boot)
 # ========================
-
+backend/target/
 backend/.env
 *.class
 
