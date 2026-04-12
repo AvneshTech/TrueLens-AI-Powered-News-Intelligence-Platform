@@ -15,6 +15,7 @@ WORKDIR /app
 
 # Copy the built JAR from the backend target directory
 COPY --from=build /app/backend/target/app.jar app.jar
+RUN mkdir -p target && cp app.jar target/app.jar
 
 EXPOSE 8080
 
