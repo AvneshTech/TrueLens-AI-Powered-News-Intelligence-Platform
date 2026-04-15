@@ -84,3 +84,38 @@ graph TD
 * ✅ Database connected and migrated
 * ✅ Error logging enabled
 * ✅ Build & deployment pipelines verified
+
+---
+
+## 📸 Screenshots
+
+> Add your application screenshots below to showcase UI and features
+
+### 🔐 Authentication
+
+![Login Page](./screenshots/login.png)
+![Register Page](./screenshots/register.png)
+
+### 🏠 Dashboard
+
+![User Dashboard](./screenshots/dashboard.png)
+
+### 📊 Analytics
+
+![Analytics Dashboard](./screenshots/analytics.png)
+
+### 🤖 AI / Prediction
+
+![Prediction Result](./screenshots/prediction.png)
+
+### 😊 Sentiment Analysis
+
+![Sentiment Analysis](./screenshots/sentiment.png)
+
+---
+
+## 📝 Notes
+
+* Create a `screenshots/` folder in your repo root
+* Add images with the same names as above or update paths accordingly
+* Use high-quality images (recommended width: 1200px+)
