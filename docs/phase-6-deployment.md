@@ -55,13 +55,13 @@ Prepare the application for **real-world deployment** by enhancing performance, 
 
 ```mermaid
 graph TD
-    A[React Frontend (Vercel)] -->|HTTPS API Calls| B[Spring Boot Backend (Render)]
-    B -->|REST API| C[Flask ML Microservice (Render)]
-    B -->|JDBC Connection| D[(MySQL Cloud Database)]
+    A["React Frontend (Vercel)"] -->|HTTPS API Calls| B["Spring Boot Backend (Render)"]
+    B -->|REST API| C["Flask ML Microservice (Render)"]
+    B -->|JDBC Connection| D["MySQL Cloud Database"]
 
-    C -->|Model Inference| E[ML Model (.pkl)]
+    C -->|Model Inference| E["ML Model (.pkl)"]
 
-    B -->|Authentication| F[JWT + Refresh Tokens]
+    B -->|Authentication| F["JWT + Refresh Tokens"]
 ```
 
 ---
@@ -119,3 +119,4 @@ graph TD
 * Create a `screenshots/` folder in your repo root
 * Add images with the same names as above or update paths accordingly
 * Use high-quality images (recommended width: 1200px+)
+
