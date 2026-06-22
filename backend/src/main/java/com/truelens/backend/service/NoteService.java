@@ -6,6 +6,7 @@ import com.truelens.backend.model.Note;
 import com.truelens.backend.model.User;
 import com.truelens.backend.repository.NoteRepository;
 import com.truelens.backend.repository.UserRepository;
+import com.truelens.backend.model.NotificationType;
 
 
 import org.slf4j.Logger;
@@ -21,10 +22,13 @@ public class NoteService {
 
     private final NoteRepository noteRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
-    public NoteService(NoteRepository noteRepository, UserRepository userRepository) {
+    public NoteService(NoteRepository noteRepository, UserRepository userRepository,
+                       NotificationService notificationService) {
         this.noteRepository = noteRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     // FIX #17: Removed @SuppressWarnings("null") — addressed the underlying issue instead.
@@ -39,11 +43,14 @@ public class NoteService {
                 .content(request.getContent())
                 .category(request.getCategory())
                 .tags(request.getTags())
-                .user(user)
+                .userEmail(email)
                 .build();
 
         try {
             Note savedNote = noteRepository.save(note);
+            notificationService.create(email, "Note created",
+                    "Your note \"" + savedNote.getTitle() + "\" was saved.",
+                    NotificationType.NOTE, "/notes");
             return mapToResponse(savedNote);
         } catch (Exception e) {
             logger.error("Failed to save note for user {}: {}", email, e.getMessage(), e);
@@ -58,7 +65,7 @@ public class NoteService {
     }
 
     // ✅ GET SINGLE NOTE (SECURE)
-    public NoteResponse getNoteById(Long id, String email) {
+    public NoteResponse getNoteById(String id, String email) {
 
         Note note = noteRepository.findByIdAndUserEmail(id, email)
                 .orElseThrow(() -> new RuntimeException("Note not found"));
@@ -67,7 +74,7 @@ public class NoteService {
     }
 
     // ✅ UPDATE NOTE (SECURE)
-    public NoteResponse updateNote(Long id, NoteRequest request, String email) {
+    public NoteResponse updateNote(String id, NoteRequest request, String email) {
 
         Note note = noteRepository.findByIdAndUserEmail(id, email)
                 .orElseThrow(() -> new RuntimeException("Note not found"));
@@ -85,11 +92,19 @@ public class NoteService {
     // ✅ DELETE NOTE (SECURE)
     // FIX #17: Removed @SuppressWarnings("null") — noteRepository.delete(note)
     // accepts a non-null entity which we guarantee via the orElseThrow above.
-    public void deleteNote(Long id, String email) {
+    public void deleteNote(String id, String email) {
 
         Note note = noteRepository.findByIdAndUserEmail(id, email)
                 .orElseThrow(() -> new RuntimeException("Note not found"));
 
+        noteRepository.delete(note);
+    }
+
+    // ✅ ADMIN DELETE (FIX H-2): delete any note by id, regardless of owner.
+    // Backs the previously-dead DELETE /api/admin/notes/{id} endpoint.
+    public void adminDeleteNote(String id) {
+        Note note = noteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Note not found"));
         noteRepository.delete(note);
     }
 

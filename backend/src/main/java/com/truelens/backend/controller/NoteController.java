@@ -17,7 +17,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/notes")
 @Tag(name = "Notes", description = "Note management endpoints")
@@ -57,7 +56,7 @@ public class NoteController {
     // ✅ GET SINGLE NOTE
     @GetMapping("/{id}")
     public ApiResult<NoteResponse> getNote(
-            @PathVariable Long id,
+            @PathVariable String id,
             Authentication auth) {
 
         return ApiResult.success(
@@ -68,7 +67,7 @@ public class NoteController {
     // ✅ UPDATE NOTE
     @PutMapping("/{id}")
     public ApiResult<NoteResponse> updateNote(
-            @PathVariable Long id,
+            @PathVariable String id,
             @RequestBody @Valid NoteRequest request,
             Authentication auth) {
 
@@ -80,7 +79,7 @@ public class NoteController {
     // ✅ DELETE NOTE
     @DeleteMapping("/{id}")
     public ApiResult<Void> deleteNote(
-            @PathVariable Long id,
+            @PathVariable String id,
             Authentication auth) {
 
         noteService.deleteNote(id, auth.getName());

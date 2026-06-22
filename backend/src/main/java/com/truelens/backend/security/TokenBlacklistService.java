@@ -4,7 +4,6 @@ import com.truelens.backend.model.BlacklistedToken;
 import com.truelens.backend.repository.BlacklistedTokenRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -29,7 +28,6 @@ public class TokenBlacklistService {
         this.repository = repository;
     }
 
-    @Transactional
     public void blacklistToken(String token, LocalDateTime expiresAt) {
         if (!repository.existsByToken(token)) {
             repository.save(new BlacklistedToken(token, expiresAt));
@@ -42,7 +40,6 @@ public class TokenBlacklistService {
 
     /** Remove expired tokens every hour to keep the table lean. */
     @Scheduled(fixedRate = 3_600_000)
-    @Transactional
     public void purgeExpiredTokens() {
         repository.deleteAllByExpiresAtBefore(LocalDateTime.now());
     }

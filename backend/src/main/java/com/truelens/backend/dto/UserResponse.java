@@ -10,7 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public class UserResponse {
 
     @Schema(description = "User ID", example = "1")
-    private Long id;
+    private String id;
 
     @Schema(description = "User's full name", example = "John Doe")
     private String name;

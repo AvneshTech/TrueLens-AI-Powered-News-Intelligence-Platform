@@ -5,6 +5,8 @@ import com.truelens.backend.dto.RegisterRequest;
 import com.truelens.backend.dto.UserResponse;
 import com.truelens.backend.dto.AuthResponse;
 import com.truelens.backend.dto.ApiResult;
+import com.truelens.backend.dto.ForgotPasswordRequest;
+import com.truelens.backend.dto.ResetPasswordRequest;
 import com.truelens.backend.exception.ApiException;
 import com.truelens.backend.model.RefreshToken;
 import com.truelens.backend.model.User;
@@ -122,9 +124,13 @@ public class AuthController {
 
         User user = userService.findByEmail(token.getEmail());
 
+        // FIX H-5: emit the same "ROLE_"-prefixed claim that login produces, so the
+        // role claim is consistent across login and refresh (was bare enum name here).
+        String role = "ROLE_" + (user.getRole() != null ? user.getRole().name() : "USER");
+
         String newAccessToken = jwtUtil.generateToken(
                 user.getEmail(),
-                user.getRole().name()
+                role
         );
 
         return ApiResult.<String>builder()
@@ -132,5 +138,49 @@ public class AuthController {
                 .message("New access token generated")
                 .data(newAccessToken)
                 .build();
+    }
+
+    // =========================
+    // ✅ VERIFY EMAIL (PHASE 3)
+    // =========================
+    @PostMapping("/verify-email")
+    public ApiResult<String> verifyEmail(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        if (token == null || token.isBlank()) {
+            throw new ApiException("Verification token is required");
+        }
+        String msg = userService.verifyEmail(token);
+        return ApiResult.<String>builder().success(true).message(msg).data(null).build();
+    }
+
+    // =========================
+    // ✅ RESEND VERIFICATION (PHASE 3)
+    // =========================
+    @PostMapping("/resend-verification")
+    public ApiResult<String> resendVerification(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            throw new ApiException("Email is required");
+        }
+        String msg = userService.resendVerification(email);
+        return ApiResult.<String>builder().success(true).message(msg).data(null).build();
+    }
+
+    // =========================
+    // ✅ FORGOT PASSWORD (PHASE 3)
+    // =========================
+    @PostMapping("/forgot-password")
+    public ApiResult<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        String msg = userService.forgotPassword(request.getEmail());
+        return ApiResult.<String>builder().success(true).message(msg).data(null).build();
+    }
+
+    // =========================
+    // ✅ RESET PASSWORD (PHASE 3)
+    // =========================
+    @PostMapping("/reset-password")
+    public ApiResult<String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        String msg = userService.resetPassword(request.getToken(), request.getNewPassword());
+        return ApiResult.<String>builder().success(true).message(msg).data(null).build();
     }
 }

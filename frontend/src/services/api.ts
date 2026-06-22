@@ -111,11 +111,14 @@ export const newsAPI = {
 // ─────────────────────────────────────────
 // 👑 ADMIN — /api/admin/*
 // ─────────────────────────────────────────
+// FIX H-2: corrected paths to match the real backend AdminController routes.
+//   - deleteUser: backend route is singular  → /admin/user/{id}  (was /admin/users/{id} → 404)
+//   - getAnalytics + deleteNote: backend now implements these routes (added in this pass).
 export const adminAPI = {
   getDashboard: () => API.get("/admin/dashboard"),
   getAnalytics: () => API.get("/admin/analytics"),
   getAllUsers: () => API.get("/admin/users"),
-  deleteUser: (userId: string) => API.delete(`/admin/users/${userId}`),
+  deleteUser: (userId: string) => API.delete(`/admin/user/${userId}`),
   deleteNote: (noteId: string) => API.delete(`/admin/notes/${noteId}`),
 };
 

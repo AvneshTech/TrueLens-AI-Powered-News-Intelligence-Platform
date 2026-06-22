@@ -1,8 +1,8 @@
-import axios, { AxiosInstance } from "axios";
+import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 
-// ─────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────
 // TYPES  (matched exactly to backend DTOs)
-// ─────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────
 export interface ApiResult<T> {
   success: boolean;
   message: string;
@@ -15,7 +15,7 @@ export interface AuthResponse {
 }
 
 export interface UserProfile {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: string;
@@ -40,21 +40,22 @@ export interface FactCheckResponse {
 }
 
 export interface PredictionHistory {
-  id: number;
+  id: string;
   newsTitle: string;
   content: string;
-  result: "REAL" | "FAKE";
+  // M-1: backend supports UNCERTAIN too; keep it end-to-end.
+  result: "REAL" | "FAKE" | "UNCERTAIN";
   confidence: number;
   createdAt: string;
 }
 
 export interface DetectionResult {
-  label: "REAL" | "FAKE"; // ✅ FIXED (was prediction)
+  label: "REAL" | "FAKE" | "UNCERTAIN";
   confidence: number;
 }
 
 export interface NoteResponse {
-  id: number;
+  id: string;
   title: string;
   content: string;
   category?: string;
@@ -85,46 +86,142 @@ export interface DashboardResponse {
   recentActivity: any[];
 }
 
-// ─────────────────────────────────────────────────────────
+export interface NotificationItem {
+  id: string;
+  userEmail?: string;
+  title?: string;
+  message: string;
+  type?: string;
+  link?: string;
+  read: boolean;
+  createdAt?: string;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CONFIG
+// ────────────────────────────────────────────────────────────────────────────
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+function getToken(): string | null {
+  return localStorage.getItem("token") || sessionStorage.getItem("token");
+}
+
+function getRefreshToken(): string | null {
+  return (
+    localStorage.getItem("refreshToken") ||
+    sessionStorage.getItem("refreshToken")
+  );
+}
+
+function storeAccessToken(token: string) {
+  // Store back into whichever storage currently holds the refresh token.
+  if (localStorage.getItem("refreshToken")) {
+    localStorage.setItem("token", token);
+  } else {
+    sessionStorage.setItem("token", token);
+  }
+}
+
+function clearSession() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("user");
+  sessionStorage.removeItem("token");
+  sessionStorage.removeItem("refreshToken");
+  sessionStorage.removeItem("user");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // API SERVICE CLASS
-// ─────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────
 class APIService {
   private api: AxiosInstance;
+  // De-dupe concurrent refreshes so a burst of 401s triggers a single refresh.
+  private refreshPromise: Promise<string | null> | null = null;
 
   constructor() {
     this.api = axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080",
+      baseURL: BASE_URL,
       headers: { "Content-Type": "application/json" },
     });
 
     // Attach JWT token to every request
     this.api.interceptors.request.use((config) => {
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const token = getToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
       return config;
     });
 
-    // Auto logout on 401
+    // FIX H-4: on 401, try ONE silent refresh and replay the original request.
+    // Only log the user out if the refresh itself fails. (Previously every 401
+    // wiped storage and redirected, so sessions died abruptly at token expiry
+    // and the entire refresh-token infrastructure was dead weight.)
     this.api.interceptors.response.use(
       (response) => response,
-      (error) => {
+      async (error) => {
+        const original = (error.config || {}) as AxiosRequestConfig & {
+          _retry?: boolean;
+        };
+
+        const isRefreshCall = original.url?.includes("/api/auth/refresh");
+
+        if (
+          error.response?.status === 401 &&
+          !original._retry &&
+          !isRefreshCall &&
+          getRefreshToken()
+        ) {
+          original._retry = true;
+          try {
+            const newToken = await this.refreshAccessToken();
+            if (newToken) {
+              original.headers = original.headers || {};
+              (original.headers as Record<string, string>).Authorization =
+                `Bearer ${newToken}`;
+              return this.api(original);
+            }
+          } catch {
+            // fall through to logout below
+          }
+        }
+
         if (error.response?.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("refreshToken");
-          localStorage.removeItem("user");
-          sessionStorage.removeItem("token");
-          sessionStorage.removeItem("refreshToken");
-          sessionStorage.removeItem("user");
+          clearSession();
           window.location.href = "/auth/login";
         }
+
         return Promise.reject(error);
       },
     );
   }
 
-  // ─── AUTH ─────────────────────────────────────────────
+  // Single-flight refresh. Uses a bare axios instance to avoid interceptor recursion.
+  private refreshAccessToken(): Promise<string | null> {
+    if (this.refreshPromise) return this.refreshPromise;
+
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return Promise.resolve(null);
+
+    this.refreshPromise = axios
+      .post<ApiResult<string>>(`${BASE_URL}/api/auth/refresh`, { refreshToken })
+      .then((resp) => {
+        const newToken = resp.data?.data;
+        if (newToken) {
+          storeAccessToken(newToken);
+          return newToken;
+        }
+        return null;
+      })
+      .finally(() => {
+        this.refreshPromise = null;
+      });
+
+    return this.refreshPromise;
+  }
+
+  // ─── AUTH ───────────────────────────────────────────────────────────────
   async login(
     email: string,
     password: string,
@@ -152,22 +249,42 @@ class APIService {
     return response.data;
   }
 
+  // PHASE 3: email verification + password reset
+  async verifyEmail(token: string): Promise<ApiResult<string>> {
+    const r = await this.api.post<ApiResult<string>>("/api/auth/verify-email", { token });
+    return r.data;
+  }
+
+  async resendVerification(email: string): Promise<ApiResult<string>> {
+    const r = await this.api.post<ApiResult<string>>("/api/auth/resend-verification", { email });
+    return r.data;
+  }
+
+  async forgotPassword(email: string): Promise<ApiResult<string>> {
+    const r = await this.api.post<ApiResult<string>>("/api/auth/forgot-password", { email });
+    return r.data;
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<ApiResult<string>> {
+    const r = await this.api.post<ApiResult<string>>("/api/auth/reset-password", { token, newPassword });
+    return r.data;
+  }
+
   async logout(): Promise<void> {
     try {
       await this.api.post("/api/auth/logout");
     } finally {
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
+      clearSession();
     }
   }
 
-  // ─── USER ─────────────────────────────────────────────
+  // ─── USER ───────────────────────────────────────────────────────────────
   async getUserProfile(): Promise<ApiResult<UserProfile>> {
     const response = await this.api.get<ApiResult<UserProfile>>("/api/user/me");
     return response.data;
   }
 
-  // ─── NEWS ─────────────────────────────────────────────
+  // ─── NEWS ───────────────────────────────────────────────────────────────
   async getNews(params?: {
     category?: string;
     search?: string;
@@ -180,8 +297,7 @@ class APIService {
     return response.data;
   }
 
-  // ─── FACT CHECK (keyword-based fallback, no ML) ───────────────────────
-  // GET /api/fact-check?title=... → FactCheckController → FactCheckService
+  // ─── FACT CHECK (keyword-based fallback, no ML) ──────────────────────────
   async checkFactuality(title: string): Promise<FactCheckResponse> {
     const response = await this.api.get("/api/fact-check", {
       params: { title },
@@ -189,56 +305,35 @@ class APIService {
     return response.data;
   }
 
-  // ─── PREDICTIONS ──────────────────────────────────────
-
-  // ─────────────────────────────────────
-  // 🔥 DETECTOR (ML)
-  // ─────────────────────────────────────
+  // ─── DETECTOR (ML) ───────────────────────────────────────────────────────
+  // NOTE (FIX H-9): /api/detect already persists the result server-side for the
+  // authenticated user. There is no separate client-side "save" call any more —
+  // that produced duplicate history rows and inflated every analytics count.
   async detectFakeNews(text: string): Promise<DetectionResult> {
     const res = await this.api.post("/api/detect", { text });
 
     const data = res.data;
-    const predictionValue = data.prediction || data.label;
+    const raw = String(data.prediction || data.label || "").toUpperCase();
 
-    return {
-      label: String(predictionValue).toUpperCase() === "REAL" ? "REAL" : "FAKE",
-      confidence: data.confidence,
-    };
+    // M-1: preserve UNCERTAIN instead of collapsing it to FAKE.
+    let label: "REAL" | "FAKE" | "UNCERTAIN";
+    if (raw === "REAL") label = "REAL";
+    else if (raw === "UNCERTAIN") label = "UNCERTAIN";
+    else label = "FAKE";
+
+    return { label, confidence: data.confidence };
   }
 
-  // ─────────────────────────────────────
-  // 🔥 SAVE PREDICTION (FIXED)
-  // ─────────────────────────────────────
-  async savePrediction(data: {
-    newsTitle: string;
-    content: string;
-    result: "REAL" | "FAKE";
-    confidence: number;
-    category?: string;
-  }): Promise<PredictionHistory> {
-    const res = await this.api.post("/api/predictions", data);
-    return res.data;
-  }
-
-  // ─────────────────────────────────────
-  // 🔥 GET HISTORY (FIXED)
-  // ─────────────────────────────────────
+  // ─── HISTORY ──────────────────────────────────────────────────────────────
+  // Returns ONLY the current user's history (backend C-1 fix scopes by auth user).
   async getPredictionHistory(): Promise<PredictionHistory[]> {
     const res = await this.api.get("/api/predictions");
-
-    // ✅ IMPORTANT: backend returns ARRAY directly
     return res.data;
   }
 
-  async createPrediction(data: {
-    newsTitle: string;
-    content: string;
-  }): Promise<ApiResult<PredictionHistory>> {
-    const response = await this.api.post("/api/predictions", data);
-    return response.data;
-  }
-
-  // ─── SENTIMENT ANALYSIS ────────────────────────────────────────────
+  // ─── SENTIMENT ANALYSIS ───────────────────────────────────────────────────
+  // FIX C-5: now calls the backend (key stays server-side). Previously this hit
+  // Hugging Face directly with the HF token inlined into the public JS bundle.
   async analyzeSentiment(text: string): Promise<{
     sentiment: "Positive" | "Neutral" | "Negative";
     score: number;
@@ -248,81 +343,49 @@ class APIService {
       return { sentiment: "Neutral", score: 0 };
     }
 
-    const MAX_HF_CHARS = 2000;
-    let inferenceText = cleanedText;
-
-    if (cleanedText.length > MAX_HF_CHARS) {
-      const truncated = cleanedText.slice(0, MAX_HF_CHARS);
-      const lastSpace = truncated.lastIndexOf(" ");
-      inferenceText = truncated.slice(0, lastSpace > 0 ? lastSpace : MAX_HF_CHARS);
-      console.warn(
-        "Sentiment input text exceeded the model limit and was truncated to avoid token overflow."
-      );
-    }
-
-    const response = await fetch(
-      "https://router.huggingface.co/hf-inference/models/cardiffnlp/twitter-roberta-base-sentiment",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_HF_API_KEY || 'YOUR_HF_TOKEN'}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          inputs: inferenceText,
-          parameters: {
-            truncation: true,
-            max_length: 512,
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Sentiment API Error:", errorText);
+    try {
+      const response = await this.api.post("/api/sentiment", {
+        text: cleanedText,
+      });
+      const data = response.data || {};
+      const sentiment =
+        data.sentiment === "Positive" || data.sentiment === "Negative"
+          ? data.sentiment
+          : "Neutral";
+      return { sentiment, score: data.score ?? 0 };
+    } catch (err) {
+      console.error("Sentiment API error:", err);
       return { sentiment: "Neutral", score: 0 };
     }
-
-    const data = await response.json();
-    const result = Array.isArray(data) && Array.isArray(data[0]) ? data[0][0] : data[0];
-
-    if (!result || !result.label) {
-      console.error("Sentiment API Error: unexpected response format", data);
-      return { sentiment: "Neutral", score: 0 };
-    }
-
-    return {
-      sentiment:
-        result.label === "LABEL_2"
-          ? "Positive"
-          : result.label === "LABEL_0"
-          ? "Negative"
-          : "Neutral",
-      score: result.score ?? 0,
-    };
   }
 
-  // ─── CATEGORY EXTRACTION ────────────────────────────────────────────
-  async categorizeNews(text: string): Promise<{
-    category: string;
-  }> {
+  // ─── CATEGORY EXTRACTION ───────────────────────────────────────────────────
+  async categorizeNews(text: string): Promise<{ category: string }> {
     const safeText = JSON.stringify(text);
     const response = await this.api.post("/api/chat", {
       message: `Categorize this news article into ONE of these categories: Politics, Sports, Technology, Health, Business, Entertainment, Science, World, Other. Respond ONLY with the category name.\nArticle: ${safeText}`,
     });
 
-    const raw = typeof response.data === "string" ? response.data : response.data?.message;
+    const raw =
+      typeof response.data === "string" ? response.data : response.data?.message;
 
     if (!raw) {
       return { category: "General" };
     }
 
-    // Clean up the response - take the first line or word
-    const category = raw.trim().split('\n')[0].split(' ')[0];
+    const category = raw.trim().split("\n")[0].split(" ")[0];
 
-    // Validate it's one of our categories
-    const validCategories = ["Politics", "Sports", "Technology", "Health", "Business", "Entertainment", "Science", "World", "Other"];
+    const validCategories = [
+      "Politics",
+      "Sports",
+      "Technology",
+      "Health",
+      "Business",
+      "Entertainment",
+      "Science",
+      "World",
+      "Other",
+    ];
     if (validCategories.includes(category)) {
       return { category };
     }
@@ -330,7 +393,7 @@ class APIService {
     return { category: "General" };
   }
 
-  // ─── NOTES ────────────────────────────────────────────
+  // ─── NOTES ───────────────────────────────────────────────────────────────
   async getNotes(): Promise<ApiResult<NoteResponse[]>> {
     const response = await this.api.get("/api/notes");
     return response.data;
@@ -366,7 +429,7 @@ class APIService {
     return response.data;
   }
 
-  // ─── ADMIN ────────────────────────────────────────────
+  // ─── ADMIN ───────────────────────────────────────────────────────────────
   async getAdminDashboard(): Promise<ApiResult<DashboardResponse>> {
     const response = await this.api.get("/api/admin/dashboard");
     return response.data;
@@ -377,21 +440,22 @@ class APIService {
     return response.data;
   }
 
-  async deleteUser(userId: number): Promise<ApiResult<void>> {
+  async deleteUser(userId: string): Promise<ApiResult<void>> {
     const response = await this.api.delete(`/api/admin/user/${userId}`);
     return response.data;
   }
 
-  async banUser(userId: number): Promise<ApiResult<void>> {
+  async banUser(userId: string): Promise<ApiResult<void>> {
     const response = await this.api.put(`/api/admin/user/ban/${userId}`);
     return response.data;
   }
 
-  async unbanUser(userId: number): Promise<ApiResult<void>> {
+  async unbanUser(userId: string): Promise<ApiResult<void>> {
     const response = await this.api.put(`/api/admin/user/unban/${userId}`);
     return response.data;
   }
 
+  // FIX H-2: backend now implements DELETE /api/admin/notes/{id}.
   async deleteNoteAsAdmin(noteId: string): Promise<ApiResult<void>> {
     const response = await this.api.delete(`/api/admin/notes/${noteId}`);
     return response.data;
@@ -407,20 +471,35 @@ class APIService {
     return response.data;
   }
 
-  // ─── CHAT ─────────────────────────────────────────────
+  // ─── NOTIFICATIONS (PHASE 4) ──────────────────────────────────────────────
+  async getNotifications(): Promise<ApiResult<NotificationItem[]>> {
+    const r = await this.api.get("/api/notifications");
+    return r.data;
+  }
+
+  async getUnreadCount(): Promise<ApiResult<{ count: number }>> {
+    const r = await this.api.get("/api/notifications/unread-count");
+    return r.data;
+  }
+
+  async markNotificationRead(id: string): Promise<ApiResult<string>> {
+    const r = await this.api.put(`/api/notifications/${id}/read`);
+    return r.data;
+  }
+
+  async markAllNotificationsRead(): Promise<ApiResult<string>> {
+    const r = await this.api.put("/api/notifications/read-all");
+    return r.data;
+  }
+
+  async deleteNotification(id: string): Promise<ApiResult<string>> {
+    const r = await this.api.delete(`/api/notifications/${id}`);
+    return r.data;
+  }
+
+  // ─── CHAT ───────────────────────────────────────────────────────────────
   async sendChatMessage(message: string): Promise<string> {
-    const token = localStorage.getItem("token");
-
-    const response = await this.api.post(
-      "/api/chat",
-      { message },
-      {
-        headers: token
-          ? { Authorization: `Bearer ${token}` }
-          : undefined,
-      },
-    );
-
+    const response = await this.api.post("/api/chat", { message });
     return response.data.message;
   }
 }

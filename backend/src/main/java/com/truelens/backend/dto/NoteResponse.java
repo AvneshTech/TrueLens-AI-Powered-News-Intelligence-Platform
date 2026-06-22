@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @Schema(name = "NoteResponse", description = "Response containing note details")
 public class NoteResponse {
 
-    private Long id;
+    private String id;
     private String title;
     private String content;
 

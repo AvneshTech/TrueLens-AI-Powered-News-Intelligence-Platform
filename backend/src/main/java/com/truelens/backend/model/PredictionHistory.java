@@ -1,12 +1,21 @@
 package com.truelens.backend.model;
 
-import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "prediction_history")
+/**
+ * PHASE 2: migrated to MongoDB @Document.
+ * - id → String; userId → String (references User.id, now a String).
+ * - userId and createdAt indexed (audit M-5) — they drive every analytics query
+ *   and the per-user history fetch.
+ * - result enum is stored as its name string by the Mongo enum converter.
+ */
+@Document(collection = "prediction_history")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -15,33 +24,22 @@ import java.time.LocalDateTime;
 public class PredictionHistory {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(nullable = false)
     private String newsTitle;
 
-    @Column(length = 3000, nullable = false)
     private String content;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private PredictionResult result;
 
-    @Column(nullable = false)
     private double confidence;
 
-    @Column(nullable = false, updatable = false)
+    @Indexed
+    @CreatedDate
     private LocalDateTime createdAt;
 
-    @Column(nullable = false)
-    private Long userId;
+    @Indexed
+    private String userId;
 
-    @Column(nullable = true)
     private String category;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

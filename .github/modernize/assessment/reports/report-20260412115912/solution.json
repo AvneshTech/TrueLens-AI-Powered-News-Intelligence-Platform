@@ -1,0 +1,6 @@
+{
+  "CWE-567": "scan-and-resolve-cwe-vulnerabilities",
+  "CWE-662": "scan-and-resolve-cwe-vulnerabilities",
+  "CWE-820": "scan-and-resolve-cwe-vulnerabilities",
+  "CWE-778": "scan-and-resolve-cwe-vulnerabilities"
+}

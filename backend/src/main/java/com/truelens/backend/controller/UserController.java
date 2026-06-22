@@ -29,7 +29,7 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    @PreAuthorize("hasRole('USER','ADMIN')")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @Operation(summary = "Get current user profile", 
                description = "Retrieves the profile information of the authenticated user")
     @ApiResponses(value = {

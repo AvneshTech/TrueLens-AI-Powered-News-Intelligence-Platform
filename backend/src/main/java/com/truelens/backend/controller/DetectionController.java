@@ -13,6 +13,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import com.truelens.backend.service.MlService;
 import com.truelens.backend.service.PredictionHistoryService;
 import com.truelens.backend.service.UserService;
+import com.truelens.backend.service.NotificationService;
+import com.truelens.backend.model.NotificationType;
 import com.truelens.backend.dto.PredictionRequest;
 import com.truelens.backend.dto.PredictionResponse;
 import com.truelens.backend.model.PredictionHistory;
@@ -35,15 +37,18 @@ public class DetectionController {
     private final PredictionHistoryService historyService;
     private final UserService userService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationService notificationService;
 
     public DetectionController(MlService mlService,
                                PredictionHistoryService historyService,
                                UserService userService,
-                               SimpMessagingTemplate messagingTemplate) {
+                               SimpMessagingTemplate messagingTemplate,
+                               NotificationService notificationService) {
         this.mlService = mlService;
         this.historyService = historyService;
         this.userService = userService;
         this.messagingTemplate = messagingTemplate;
+        this.notificationService = notificationService;
     }
 
     @PostMapping("/detect")
@@ -97,6 +102,9 @@ public class DetectionController {
             try {
                 historyService.savePrediction(history);
                 messagingTemplate.convertAndSend("/topic/predictions", "update");
+                notificationService.create(user.getEmail(), "Prediction completed",
+                        "Your article was analysed as " + predictionResult.name() + ".",
+                        NotificationType.PREDICTION, "/predictions");
             } catch (DataIntegrityViolationException ex) {
                 logger.warn("Could not save prediction history, returning ML result anyway", ex);
             } catch (Exception ex) {

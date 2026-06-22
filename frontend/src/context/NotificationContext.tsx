@@ -1,45 +1,123 @@
-import { createContext, useContext, useState } from "react";
-
-type Notification = {
-  id: number;
-  message: string;
-  time: string;
-  read: boolean;
-};
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import SockJS from "sockjs-client";
+import { Client } from "@stomp/stompjs";
+import { useAuth } from "./AuthContext";
+import { apiService, NotificationItem } from "../services/apiService";
 
 type NotificationContextType = {
-  notifications: Notification[];
+  notifications: NotificationItem[];
+  unreadCount: number;
+  refresh: () => Promise<void>;
+  markAsRead: (id: string) => void;
+  markAllRead: () => void;
+  deleteNotification: (id: string) => void;
+  /** @deprecated kept for backward compatibility — notifications are created server-side now. */
   addNotification: (msg: string) => void;
-  markAsRead: (id: number) => void;
 };
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
+const WS_URL =
+  (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080") + "/ws";
+
 export const NotificationProvider = ({ children }: any) => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const stompRef = useRef<any>(null);
 
-  const addNotification = (msg: string) => {
-    const newNotification = {
-      id: Date.now(),
-      message: msg,
-      time: "just now",
-      read: false,
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const refresh = async () => {
+    try {
+      const res = await apiService.getNotifications();
+      if (res?.success) setNotifications(res.data || []);
+    } catch {
+      // not logged in / network — ignore
+    }
+  };
+
+  // Load + subscribe whenever the authenticated user changes.
+  useEffect(() => {
+    if (!user?.email) {
+      setNotifications([]);
+      if (stompRef.current) {
+        stompRef.current.deactivate();
+        stompRef.current = null;
+      }
+      return;
+    }
+
+    refresh();
+
+    const client = new Client({
+      webSocketFactory: () => new SockJS(WS_URL),
+      reconnectDelay: 5000,
+      onConnect: () => {
+        client.subscribe(
+          `/topic/notifications/${user.email}`,
+          (frame) => {
+            try {
+              const incoming: NotificationItem = JSON.parse(frame.body);
+              setNotifications((prev) => {
+                if (prev.some((n) => n.id === incoming.id)) return prev;
+                return [incoming, ...prev];
+              });
+            } catch {
+              // ignore malformed frames
+            }
+          },
+        );
+      },
+    });
+
+    stompRef.current = client;
+    client.activate();
+
+    return () => {
+      client.deactivate();
+      stompRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email]);
 
-    setNotifications((prev) => [newNotification, ...prev]);
-  };
-
-  const markAsRead = (id: number) => {
+  const markAsRead = (id: string) => {
     setNotifications((prev) =>
-      prev.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      )
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
+    apiService.markNotificationRead(id).catch(() => refresh());
   };
+
+  const markAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    apiService.markAllNotificationsRead().catch(() => refresh());
+  };
+
+  const deleteNotification = (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    apiService.deleteNotification(id).catch(() => refresh());
+  };
+
+  // Backward-compat: pages still call addNotification(msg) after actions that now
+  // generate a real server-side notification (delivered over WebSocket), so this is a no-op.
+  const addNotification = (_msg: string) => {};
 
   return (
     <NotificationContext.Provider
-      value={{ notifications, addNotification, markAsRead }}
+      value={{
+        notifications,
+        unreadCount,
+        refresh,
+        markAsRead,
+        markAllRead,
+        deleteNotification,
+        addNotification,
+      }}
     >
       {children}
     </NotificationContext.Provider>

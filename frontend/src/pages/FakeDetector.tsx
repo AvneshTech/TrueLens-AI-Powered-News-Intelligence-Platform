@@ -105,19 +105,14 @@ export const FakeDetector = () => {
       return;
     }
 
+    // FIX H-9: analyses are persisted automatically server-side by /api/detect for
+    // the logged-in user. The old explicit savePrediction() POST created a duplicate
+    // row per analysis (double-save) and inflated every analytics count, so it has
+    // been removed. This handler now just confirms the result is already in history.
     setSaving(true);
     try {
-      await apiService.savePrediction({
-        newsTitle: headline || "Untitled",
-        content: getTextToAnalyze(),
-        result: result.label,
-        confidence: result.confidence,
-        category: "Custom", // For now, can be enhanced later
-      });
-      toast.success("Prediction saved!");
+      toast.success("Saved — this analysis is already in your history.");
       addNotification("Prediction saved to history");
-    } catch (err: any) {
-      toast.error("Failed to save prediction");
     } finally {
       setSaving(false);
     }

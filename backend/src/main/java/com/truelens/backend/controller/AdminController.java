@@ -2,8 +2,11 @@ package com.truelens.backend.controller;
 
 import com.truelens.backend.dto.*;
 import com.truelens.backend.model.User;
+import com.truelens.backend.repository.NoteRepository;
+import com.truelens.backend.repository.PredictionHistoryRepository;
 import com.truelens.backend.repository.UserRepository;
 import com.truelens.backend.service.AdminAnalyticsService;
+import com.truelens.backend.service.NoteService;
 import com.truelens.backend.service.UserService;
 
 import org.springframework.http.ResponseEntity;
@@ -11,21 +14,38 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+/**
+ * Admin endpoints. All routes are gated to ROLE_ADMIN in SecurityConfig.
+ *
+ * FIX C-6: removed controller-level @CrossOrigin (CORS centralised in SecurityConfig).
+ * FIX H-2: added the previously-dead GET /api/admin/analytics and
+ *          DELETE /api/admin/notes/{id} endpoints the frontend already calls.
+ * FIX H-3: per-user prediction/note counts and dashboard activity/category/recent
+ *          data are now real aggregates, not hard-coded 0s / fabricated deltas.
+ */
 @RestController
 @RequestMapping("/api/admin")
-@CrossOrigin(origins = "http://localhost:5173")
 public class AdminController {
 
     private final AdminAnalyticsService adminAnalyticsService;
     private final UserRepository userRepository;
-    private final UserService userService; // ✅ ADD THIS
+    private final UserService userService;
+    private final NoteService noteService;
+    private final PredictionHistoryRepository predictionRepository;
+    private final NoteRepository noteRepository;
 
     public AdminController(AdminAnalyticsService adminAnalyticsService,
             UserRepository userRepository,
-            UserService userService) { // ✅ ADD THIS
+            UserService userService,
+            NoteService noteService,
+            PredictionHistoryRepository predictionRepository,
+            NoteRepository noteRepository) {
         this.adminAnalyticsService = adminAnalyticsService;
         this.userRepository = userRepository;
-        this.userService = userService; // ✅ ADD THIS
+        this.userService = userService;
+        this.noteService = noteService;
+        this.predictionRepository = predictionRepository;
+        this.noteRepository = noteRepository;
     }
 
     // ==========================================
@@ -36,25 +56,36 @@ public class AdminController {
 
         AdminAnalytics rawStats = adminAnalyticsService.getAnalytics();
 
+        // FIX H-3: removed fabricated "+12%"/"-2%"/"+8%" deltas (no period-over-period
+        // baseline exists). trend left neutral until a real comparison is implemented.
         List<StatCard> stats = List.of(
-                new StatCard("Total Users", String.valueOf(rawStats.getTotalUsers()), "+12%", "up"),
-                new StatCard("Total Articles Analyzed", String.valueOf(rawStats.getTotalPredictions()), "+5%", "up"),
-                new StatCard("Fake News Detected", String.valueOf(rawStats.getFakeNews()), "-2%", "down"),
-                new StatCard("Real News Verified", String.valueOf(rawStats.getRealNews()), "+8%", "up"));
+                new StatCard("Total Users", String.valueOf(rawStats.getTotalUsers()), "", "neutral"),
+                new StatCard("Total Articles Analyzed", String.valueOf(rawStats.getTotalPredictions()), "", "neutral"),
+                new StatCard("Fake News Detected", String.valueOf(rawStats.getFakeNews()), "", "neutral"),
+                new StatCard("Real News Verified", String.valueOf(rawStats.getRealNews()), "", "neutral"));
 
         List<Map<String, Object>> pieData = List.of(
-                Map.of("name", "Real News", "value", rawStats.getRealNews(), "color", "#10b981"),
-                Map.of("name", "Fake News", "value", rawStats.getFakeNews(), "color", "#ef4444"));
+                mapOf("name", "Real News", "value", rawStats.getRealNews(), "color", "#10b981"),
+                mapOf("name", "Fake News", "value", rawStats.getFakeNews(), "color", "#ef4444"));
 
         DashboardResponse dashboardData = DashboardResponse.builder()
                 .stats(stats)
                 .pieData(pieData)
-                .activityData(List.of())
-                .categoryData(List.of())
-                .recentActivity(List.of())
+                .activityData(adminAnalyticsService.getActivityLast7Days())   // FIX H-3
+                .categoryData(adminAnalyticsService.getCategoryBreakdown())    // FIX H-3
+                .recentActivity(adminAnalyticsService.getRecentActivity())     // FIX H-3
                 .build();
 
         return ResponseEntity.ok(ApiResult.success(dashboardData, "Dashboard fetched successfully"));
+    }
+
+    // ==========================================
+    // ANALYTICS (FIX H-2: was a dead client call /admin/analytics)
+    // ==========================================
+    @GetMapping("/analytics")
+    public ResponseEntity<ApiResult<AdminAnalytics>> getAdminAnalytics() {
+        return ResponseEntity.ok(
+                ApiResult.success(adminAnalyticsService.getAnalytics(), "Analytics fetched successfully"));
     }
 
     // ==========================================
@@ -73,8 +104,9 @@ public class AdminController {
             dto.put("role", user.getRole() != null ? user.getRole().toString() : "USER");
             dto.put("createdAt", user.getCreatedAt());
             dto.put("status", user.isBanned() ? "BANNED" : "ACTIVE");
-            dto.put("totalPredictions", 0);
-            dto.put("totalNotes", 0);
+            // FIX H-3: real counts (were hard-coded 0 for every user)
+            dto.put("totalPredictions", predictionRepository.countByUserId(user.getId()));
+            dto.put("totalNotes", noteRepository.countByUserEmail(user.getEmail()));
             return dto;
         }).toList();
 
@@ -86,32 +118,41 @@ public class AdminController {
     // ✅ BAN USER
     // ==========================================
     @PutMapping("/user/ban/{id}")
-    public ResponseEntity<ApiResult<String>> banUser(@PathVariable Long id) {
-
+    public ResponseEntity<ApiResult<String>> banUser(@PathVariable String id) {
         userService.banUser(id);
-
-        return ResponseEntity.ok(
-                ApiResult.success("User banned successfully", "SUCCESS"));
+        return ResponseEntity.ok(ApiResult.success("User banned successfully", "SUCCESS"));
     }
 
     // ==========================================
     // ✅ DELETE USER
     // ==========================================
     @DeleteMapping("/user/{id}")
-    public ResponseEntity<ApiResult<String>> deleteUser(@PathVariable Long id) {
-
+    public ResponseEntity<ApiResult<String>> deleteUser(@PathVariable String id) {
         userService.deleteUser(id);
-
-        return ResponseEntity.ok(
-                ApiResult.success("User deleted successfully", "SUCCESS"));
+        return ResponseEntity.ok(ApiResult.success("User deleted successfully", "SUCCESS"));
     }
 
     @PutMapping("/user/unban/{id}")
-    public ResponseEntity<ApiResult<String>> unbanUser(@PathVariable Long id) {
-
+    public ResponseEntity<ApiResult<String>> unbanUser(@PathVariable String id) {
         userService.unbanUser(id);
+        return ResponseEntity.ok(ApiResult.success("User unbanned successfully", "SUCCESS"));
+    }
 
-        return ResponseEntity.ok(
-                ApiResult.success("User unbanned successfully", "SUCCESS"));
+    // ==========================================
+    // ✅ DELETE NOTE (FIX H-2: previously a dead client call to a missing route)
+    // ==========================================
+    @DeleteMapping("/notes/{id}")
+    public ResponseEntity<ApiResult<String>> deleteNote(@PathVariable String id) {
+        noteService.adminDeleteNote(id);
+        return ResponseEntity.ok(ApiResult.success("Note deleted successfully", "SUCCESS"));
+    }
+
+    // small helper for nullable-safe ordered maps in pie data
+    private Map<String, Object> mapOf(Object... kv) {
+        Map<String, Object> m = new HashMap<>();
+        for (int i = 0; i + 1 < kv.length; i += 2) {
+            m.put(String.valueOf(kv[i]), kv[i + 1]);
+        }
+        return m;
     }
 }

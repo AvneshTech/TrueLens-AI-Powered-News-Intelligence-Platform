@@ -1,26 +1,29 @@
 package com.truelens.backend.model;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.time.LocalDateTime;
 
 /**
  * Persisted JWT blacklist entry.
- * Created as part of Fix #1 (replace in-memory token blacklist).
+ *
+ * PHASE 2: migrated to MongoDB @Document. The `expiresAt` field carries a TTL index
+ * (expireAfterSeconds = 0) so MongoDB removes each entry automatically once it passes
+ * its expiry — replacing the need for a scheduled purge job (the hourly sweep is kept
+ * only as a belt-and-suspenders fallback).
  */
-@Entity
-@Table(name = "blacklisted_tokens", indexes = {
-    @Index(name = "idx_blacklisted_token", columnList = "token", unique = true)
-})
+@Document(collection = "blacklisted_tokens")
 public class BlacklistedToken {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(nullable = false, unique = true, length = 512)
+    @Indexed(unique = true)
     private String token;
 
-    @Column(nullable = false)
+    @Indexed(expireAfterSeconds = 0)
     private LocalDateTime expiresAt;
 
     public BlacklistedToken() {}
@@ -30,7 +33,7 @@ public class BlacklistedToken {
         this.expiresAt = expiresAt;
     }
 
-    public Long getId() { return id; }
+    public String getId() { return id; }
     public String getToken() { return token; }
     public LocalDateTime getExpiresAt() { return expiresAt; }
 }

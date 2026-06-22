@@ -105,7 +105,7 @@ export const AdminPanel = () => {
     }
   };
 
-  const handleUnban = async (id: number) => {
+  const handleUnban = async (id: string) => {
     try {
       const response = await apiService.unbanUser(id);
       if (response.success) {

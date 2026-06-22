@@ -1,0 +1,196 @@
+{
+  "version": "1.0.0",
+  "producer": "Java AppCAT CLI",
+  "metadata": {
+    "analysisStartTime": "2026-04-12T06:29:12.761Z",
+    "analysisEndTime": "2026-04-12T06:32:31.152Z",
+    "privacyMode": "Protected",
+    "privacyModeHelpUrl": "https://aka.ms/appmod-privacy-mode",
+    "targetIds": [],
+    "targetDisplayNames": [],
+    "capabilities": [
+      "openjdk21"
+    ],
+    "os": [],
+    "id": "20260412115912",
+    "name": "Report_20260412115912",
+    "status": "completed",
+    "domains": [
+      "security"
+    ],
+    "mode": "issue-only"
+  },
+  "summary": {
+    "totalProjects": 1,
+    "totalIssues": 0,
+    "totalIncidents": 0,
+    "totalEffort": 0,
+    "charts": {
+      "severity": {
+        "mandatory": 0,
+        "optional": 0,
+        "potential": 0,
+        "information": 0
+      },
+      "category": {}
+    }
+  },
+  "projects": [
+    {
+      "path": ".",
+      "issues": 0,
+      "storyPoints": 0,
+      "properties": {
+        "appName": "TrueLens",
+        "jdkVersion": "23",
+        "frameworks": [
+          "Next",
+          "Next.js",
+          "React",
+          "Spring Boot",
+          "Spring",
+          "Flask"
+        ],
+        "languages": [
+          "TypeScript",
+          "Java",
+          "Python"
+        ],
+        "tools": [
+          "NodeJs",
+          "Maven"
+        ]
+      },
+      "incidents": []
+    }
+  ],
+  "rules": {},
+  "security": [
+    {
+      "id": "CWE-457",
+      "title": "Use of Uninitialized Variable",
+      "category": "Code Quality",
+      "severity": "potential",
+      "description": "The code uses a variable that has not been initialized, leading to unpredictable or unintended results.",
+      "evidence": {
+        "files": [
+          "backend/src/main/java/com/truelens/backend/service/HuggingFaceService.java"
+        ],
+        "explanation": "HuggingFaceService.getResponse() method calls response.getBody() at line 51 without null checking. The getBody() method can return null, and passing a null value to mapper.readTree() will cause a NullPointerException."
+      },
+      "storyPoint": 2
+    },
+    {
+      "id": "CWE-681",
+      "title": "Incorrect Conversion between Numeric Types",
+      "category": "Code Quality",
+      "severity": "potential",
+      "description": "When converting from one data type to another, such as long to integer, data can be omitted or translated in a way that produces unexpected values. If the resulting values are used in a sensitive context, then dangerous behaviors may occur.",
+      "evidence": {
+        "files": [
+          "backend/src/main/java/com/truelens/backend/service/AnalyticsService.java"
+        ],
+        "explanation": "AnalyticsService.getAnalytics() performs unsafe numeric type conversions without checking for overflow or data loss: line 35 casts Number to int (month), line 37 casts to long (count), line 66 casts to int (day), line 67 casts to long (count), and line 89 converts Double to int for confidence value. These conversions can lose precision or cause incorrect calculations without explicit overflow validation."
+      },
+      "storyPoint": 3
+    },
+    {
+      "id": "CWE-772",
+      "title": "Missing Release of Resource after Effective Lifetime",
+      "category": "Code Quality",
+      "severity": "potential",
+      "description": "The product does not release a resource after its effective lifetime has ended, i.e., after the resource is no longer needed.",
+      "evidence": {
+        "files": [
+          "backend/src/main/java/com/truelens/backend/service/HuggingFaceService.java"
+        ],
+        "explanation": "HuggingFaceService.getResponse() method instantiates a new RestTemplate() on line 21 for every request instead of reusing the shared Spring bean defined in AppConfig. This creates unnecessary resource overhead, prevents connection pooling, and leaves resources to be garbage collected rather than properly managed as singletons. MlService correctly reuses the RestTemplate bean, but HuggingFaceService does not."
+      },
+      "storyPoint": 3
+    },
+    {
+      "id": "CWE-567",
+      "title": "Unsynchronized Access to Shared Data in a Multithreaded Context",
+      "category": "Concurrency & Synchronization",
+      "severity": "potential",
+      "description": "The product does not properly synchronize shared data, such as static variables across threads, which can lead to undefined behavior and unpredictable data changes.",
+      "evidence": {
+        "files": [
+          "ml-service/app.py"
+        ],
+        "explanation": "The _rate_store module-level defaultdict is accessed and modified without synchronization in the is_rate_limited() function (lines 23-27). Multiple concurrent requests from the same IP can race on read-modify-append operations: timestamps are read (line 23), written (line 24), and appended to (line 27) without locks, allowing concurrent threads to bypass rate limiting."
+      },
+      "storyPoint": 5
+    },
+    {
+      "id": "CWE-662",
+      "title": "Improper Synchronization",
+      "category": "Concurrency & Synchronization",
+      "severity": "potential",
+      "description": "The product utilizes multiple threads or processes to allow temporary access to a shared resource that can only be exclusive to one process at a time, but it does not properly synchronize these actions, which might cause simultaneous accesses of this resource by multiple threads or processes.",
+      "evidence": {
+        "files": [
+          "ml-service/app.py"
+        ],
+        "explanation": "The is_rate_limited() function utilizes a shared resource (_rate_store[ip] list) accessed by multiple concurrent Flask threads without proper synchronization. The function performs multiple non-atomic operations on shared state: read timestamps (line 23), reassign the list (line 24), and append a timestamp (line 27), which can result in simultaneous access by multiple threads causing data corruption and rate limit bypass."
+      },
+      "storyPoint": 8
+    },
+    {
+      "id": "CWE-820",
+      "title": "Missing Synchronization",
+      "category": "Concurrency & Synchronization",
+      "severity": "potential",
+      "description": "The product utilizes a shared resource in a concurrent manner but does not attempt to synchronize access to the resource.",
+      "evidence": {
+        "files": [
+          "ml-service/app.py"
+        ],
+        "explanation": "The _rate_store global variable is utilized in a concurrent manner (Flask runs with threaded=True by default) within the is_rate_limited() function, but no synchronization mechanism (locks, thread-local storage, or atomic operations) is employed to protect access to this shared resource, allowing multiple concurrent requests to corrupt the rate limit state."
+      },
+      "storyPoint": 8
+    },
+    {
+      "id": "CWE-778",
+      "title": "Insufficient Logging",
+      "category": "Credentials & Secrets",
+      "severity": "potential",
+      "description": "When a security-critical event occurs, the product either does not record the event or omits important details about the event when logging it.",
+      "evidence": {
+        "files": [
+          "backend/src/main/java/com/truelens/backend/security/JwtFilter.java"
+        ],
+        "explanation": "JwtFilter class does not log authentication failures. The exception handler at lines 67-77 silently clears the security context without logging the failure event. Security-critical authentication exceptions (JWT validation failures, blacklisted token detection) are caught and discarded without any audit trail, violating security logging requirements. This prevents detection of attack attempts and makes forensic analysis impossible."
+      },
+      "storyPoint": 3
+    },
+    {
+      "id": "CWE-99",
+      "title": "Improper Control of Resource Identifiers ('Resource Injection')",
+      "category": "Injection Attacks",
+      "severity": "potential",
+      "description": "The product receives input from an upstream component, but it does not restrict or incorrectly restricts the input before it is used as an identifier for a resource that may be outside the intended sphere of control.",
+      "evidence": {
+        "files": [
+          "backend/src/main/java/com/truelens/backend/service/NewsService.java"
+        ],
+        "explanation": "NewsService.getNews() directly concatenates user-controlled parameters (search, category) into a URL without proper URL encoding at lines 21-30. The search and category parameters from user input are used in string concatenation: String url = \"https://newsapi.org/v2/everything?q=\" + query + ... This allows parameter pollution or improper resource access through malicious query strings."
+      },
+      "storyPoint": 3
+    },
+    {
+      "id": "CWE-502",
+      "title": "Deserialization of Untrusted Data",
+      "category": "Injection Attacks",
+      "severity": "mandatory",
+      "description": "The product deserializes untrusted data without sufficiently ensuring that the resulting data will be valid.",
+      "evidence": {
+        "files": [
+          "ml-service/app.py"
+        ],
+        "explanation": "app.py uses pickle.load() at lines 31-32 to deserialize model.pkl and vectorizer.pkl files. The pickle module is known to execute arbitrary code during deserialization. If an attacker can modify or replace these pickle files, they can execute arbitrary Python code when the application loads the model at startup. This is a critical deserialization vulnerability."
+      },
+      "storyPoint": 13
+    }
+  ]
+}

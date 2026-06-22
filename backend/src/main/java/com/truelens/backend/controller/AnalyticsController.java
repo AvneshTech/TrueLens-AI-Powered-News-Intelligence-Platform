@@ -15,11 +15,20 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+/**
+ * User-facing dashboard analytics.
+ *
+ * FIX C-3: this controller is no longer publicly reachable — /api/analytics/** was
+ *          removed from permitAll in SecurityConfig, so a JWT is required.
+ * FIX C-6: removed controller-level @CrossOrigin (CORS centralised in SecurityConfig).
+ * FIX H-3: activity series and category breakdown are now real aggregates instead of
+ *          total/7, total/6, … and the invented Politics/Tech/Health arithmetic split.
+ *          Fabricated "+5%/-2%/+8%" stat deltas removed.
+ */
 @RestController
 @RequestMapping("/api/analytics")
 @Tag(name = "Analytics", description = "Dashboard analytics for users")
 @SecurityRequirement(name = "Bearer Authentication")
-@CrossOrigin(origins = "*")
 public class AnalyticsController {
 
     private final AdminAnalyticsService adminAnalyticsService;
@@ -39,40 +48,23 @@ public class AnalyticsController {
         AdminAnalytics raw = adminAnalyticsService.getAnalytics();
 
         List<StatCard> stats = List.of(
-                new StatCard("Total Articles Analyzed", String.valueOf(raw.getTotalPredictions()), "+5%", "up"),
-                new StatCard("Fake News Detected", String.valueOf(raw.getFakeNews()), "-2%", "down"),
-                new StatCard("Real News Verified", String.valueOf(raw.getRealNews()), "+8%", "up"),
-                new StatCard("Total Users", String.valueOf(raw.getTotalUsers()), "+12%", "up")
+                new StatCard("Total Articles Analyzed", String.valueOf(raw.getTotalPredictions()), "", "neutral"),
+                new StatCard("Fake News Detected", String.valueOf(raw.getFakeNews()), "", "neutral"),
+                new StatCard("Real News Verified", String.valueOf(raw.getRealNews()), "", "neutral"),
+                new StatCard("Total Users", String.valueOf(raw.getTotalUsers()), "", "neutral")
         );
 
-        // ✅ Activity (safe map instead of Map.of)
-        List<Map<String, Object>> activityData = new ArrayList<>();
-
-        activityData.add(createDay("Mon", raw.getTotalPredictions() / 7));
-        activityData.add(createDay("Tue", raw.getTotalPredictions() / 6));
-        activityData.add(createDay("Wed", raw.getTotalPredictions() / 5));
-        activityData.add(createDay("Thu", raw.getTotalPredictions() / 4));
-        activityData.add(createDay("Fri", raw.getTotalPredictions() / 3));
-        activityData.add(createDay("Sat", raw.getTotalPredictions() / 2));
-        activityData.add(createDay("Sun", raw.getTotalPredictions()));
-
-        // ✅ Pie
+        // ✅ Pie (real)
         List<Map<String, Object>> pieData = new ArrayList<>();
         pieData.add(createMap("Fake", raw.getFakeNews()));
         pieData.add(createMap("Real", raw.getRealNews()));
 
-        // ✅ Category
-        List<Map<String, Object>> categoryData = new ArrayList<>();
-        categoryData.add(createCategory("Politics", raw.getFakeNews() / 2, raw.getRealNews() / 2));
-        categoryData.add(createCategory("Tech", raw.getFakeNews() / 4, raw.getRealNews() / 4));
-        categoryData.add(createCategory("Health", raw.getFakeNews() / 4, raw.getRealNews() / 4));
-
         DashboardResponse response = DashboardResponse.builder()
                 .stats(stats)
-                .activityData(activityData)
+                .activityData(adminAnalyticsService.getActivityLast7Days())  // FIX H-3 (was total/7…)
                 .pieData(pieData)
-                .categoryData(categoryData)
-                .recentActivity(List.of())
+                .categoryData(adminAnalyticsService.getCategoryBreakdown())   // FIX H-3 (was invented)
+                .recentActivity(adminAnalyticsService.getRecentActivity())    // FIX H-3 (was empty)
                 .build();
 
         return ApiResult.success(response, "Dashboard stats retrieved");
@@ -85,27 +77,10 @@ public class AnalyticsController {
         return analyticsService.getAnalytics();
     }
 
-    // 🔥 Helper Methods (clean + reusable)
-
-    private Map<String, Object> createDay(String name, long value) {
-        Map<String, Object> map = new HashMap<>();
-        map.put("name", name);
-        map.put("value", value);
-        return map;
-    }
-
     private Map<String, Object> createMap(String name, long value) {
         Map<String, Object> map = new HashMap<>();
         map.put("name", name);
         map.put("value", value);
-        return map;
-    }
-
-    private Map<String, Object> createCategory(String name, long fake, long real) {
-        Map<String, Object> map = new HashMap<>();
-        map.put("name", name);
-        map.put("fake", fake);
-        map.put("real", real);
         return map;
     }
 }

@@ -2,45 +2,27 @@ package com.truelens.backend.repository;
 
 import com.truelens.backend.model.PredictionHistory;
 import com.truelens.backend.model.PredictionResult;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
 
-public interface PredictionHistoryRepository extends JpaRepository<PredictionHistory, Long> {
+/**
+ * PHASE 2: migrated to MongoRepository.
+ *
+ * Simple lookups/counts are derived queries below. The analytics aggregations
+ * (monthly, last-7-days, average confidence, category breakdown) have no derived-query
+ * equivalent in MongoDB, so they live in {@link PredictionHistoryRepositoryCustom}
+ * and are implemented with MongoTemplate aggregation pipelines
+ * (see {@link PredictionHistoryRepositoryImpl}).
+ */
+public interface PredictionHistoryRepository
+        extends MongoRepository<PredictionHistory, String>, PredictionHistoryRepositoryCustom {
 
-    List<PredictionHistory> findByUserId(Long userId);
+    List<PredictionHistory> findByUserId(String userId);
 
     long countByResult(PredictionResult result);
 
-    // ✅ MONTHLY TOTAL
-    @Query("""
-        SELECT FUNCTION('MONTH', p.createdAt), COUNT(p)
-        FROM PredictionHistory p
-        GROUP BY FUNCTION('MONTH', p.createdAt)
-        ORDER BY FUNCTION('MONTH', p.createdAt)
-    """)
-    List<Object[]> countByMonth();
+    long countByUserId(String userId);
 
-    // ✅ MONTHLY REAL vs FAKE
-    @Query("""
-        SELECT FUNCTION('MONTH', p.createdAt), p.result, COUNT(p)
-        FROM PredictionHistory p
-        GROUP BY FUNCTION('MONTH', p.createdAt), p.result
-        ORDER BY FUNCTION('MONTH', p.createdAt)
-    """)
-    List<Object[]> countByMonthAndResult();
-
-    // ✅ LAST 7 DAYS
-    @Query(value = """
-        SELECT DAYOFWEEK(created_at), COUNT(*)
-        FROM prediction_history
-        WHERE created_at >= CURRENT_DATE - INTERVAL 7 DAY
-        GROUP BY DAYOFWEEK(created_at)
-    """, nativeQuery = true)
-    List<Object[]> countLast7Days();
-
-    // ✅ AVG CONFIDENCE
-    @Query("SELECT AVG(p.confidence) FROM PredictionHistory p")
-    Double averageConfidence();
+    List<PredictionHistory> findTop5ByOrderByCreatedAtDesc();
 }

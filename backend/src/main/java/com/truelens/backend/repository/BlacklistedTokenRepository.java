@@ -1,11 +1,11 @@
 package com.truelens.backend.repository;
 
 import com.truelens.backend.model.BlacklistedToken;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.time.LocalDateTime;
 
-public interface BlacklistedTokenRepository extends JpaRepository<BlacklistedToken, Long> {
+public interface BlacklistedTokenRepository extends MongoRepository<BlacklistedToken, String> {
 
     boolean existsByToken(String token);
 

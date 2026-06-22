@@ -1,12 +1,23 @@
 package com.truelens.backend.model;
 
-import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "notes")
+/**
+ * PHASE 2: migrated from JPA @Entity to MongoDB @Document.
+ *
+ * MongoDB has no joins, so the previous @ManyToOne User relation is replaced by a
+ * denormalised, indexed `userEmail` reference — which is exactly what every
+ * existing query (findByUserEmail / findByIdAndUserEmail / countByUserEmail) used.
+ * Timestamps are handled by Mongo auditing instead of @PrePersist/@PreUpdate.
+ */
+@Document(collection = "notes")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -14,38 +25,25 @@ import java.time.LocalDateTime;
 public class Note {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     private String title;
 
-    @Column(columnDefinition = "TEXT")
     private String content;
 
     private String category;
 
+    // Kept as a String to preserve the existing API contract (see audit M-8 for the
+    // recommended List<String> change — deferred to the Notes module phase).
     private String tags;
 
+    // Denormalised owner reference (replaces the @ManyToOne User relation).
+    @Indexed
+    private String userEmail;
+
+    @CreatedDate
     private LocalDateTime createdAt;
 
+    @LastModifiedDate
     private LocalDateTime updatedAt;
-
-    // ✅ FIX: Removed duplicate "private String userEmail" field.
-    // That field was never set by NoteService (which uses .user(user)),
-    // so all findByUserEmail() queries returned empty results at runtime.
-    // The user relationship below is the single source of truth.
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
-    @PrePersist
-    public void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    public void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 }

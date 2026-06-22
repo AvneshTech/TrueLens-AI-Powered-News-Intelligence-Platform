@@ -15,6 +15,9 @@ import { Notes } from "../pages/Notes";
 import PredictionHistory from "../pages/PredictionHistory";
 import { Profile } from "../pages/Profile";
 import { Register } from "../pages/Register";
+import { ForgotPassword } from "../pages/ForgotPassword";
+import { ResetPassword } from "../pages/ResetPassword";
+import { VerifyEmail } from "../pages/VerifyEmail";
 import Sentiment from "../pages/Sentiment";
 import { Settings } from "../pages/Settings";
 import UserProfile from "../pages/UserProfile";
@@ -61,6 +64,9 @@ export const router = createBrowserRouter([
     children: [
       { path: "login", element: <Login /> },
       { path: "register", element: <Register /> },
+      { path: "verify-email", element: <VerifyEmail /> },
+      { path: "forgot-password", element: <ForgotPassword /> },
+      { path: "reset-password", element: <ResetPassword /> },
     ],
   },
 

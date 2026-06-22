@@ -74,10 +74,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private int resolveLimit(String path) {
-        if (path.equals("/api/auth/login") || path.equals("/api/auth/register")) {
+        if (path.equals("/api/auth/login")
+                || path.equals("/api/auth/register")
+                || path.equals("/api/auth/forgot-password")
+                || path.equals("/api/auth/resend-verification")
+                || path.equals("/api/auth/reset-password")) {
             return AUTH_MAX_PER_MINUTE;
         }
         if (path.equals("/api/detect")) {
+            return DETECT_MAX_PER_MINUTE;
+        }
+        // FIX C-4: the AI chat + sentiment endpoints proxy paid inference — rate limit them too.
+        if (path.equals("/api/chat") || path.equals("/api/sentiment")) {
             return DETECT_MAX_PER_MINUTE;
         }
         return 0; // no limit on other paths

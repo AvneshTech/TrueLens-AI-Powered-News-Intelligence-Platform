@@ -4,13 +4,11 @@ import com.truelens.backend.model.RefreshToken;
 import com.truelens.backend.repository.RefreshTokenRepository;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
-@Transactional
 public class RefreshTokenService {
 
     private final RefreshTokenRepository repository;

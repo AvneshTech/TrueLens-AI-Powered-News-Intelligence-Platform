@@ -1,5 +1,6 @@
 package com.truelens.backend.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,6 +19,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -27,6 +29,10 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final RateLimitFilter rateLimitFilter;
+
+    // FIX C-6: CORS origins are environment-driven (comma-separated), not hard-coded.
+    @Value("${app.cors.allowed-origins:http://localhost:5173}")
+    private String allowedOrigins;
 
     public SecurityConfig(JwtFilter jwtFilter, RateLimitFilter rateLimitFilter) {
         this.jwtFilter = jwtFilter;
@@ -40,24 +46,22 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
 
-                // ✅ IMPORTANT: Stateless API (JWT based)
+                // ✅ Stateless API (JWT based)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
+                        // FIX C-3 + C-4: removed "/api/analytics/**" and "/api/chat" from the
+                        // public list. Analytics exposes platform-wide totals and /api/chat
+                        // proxies a paid HF endpoint — both must require authentication.
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/api/analytics/**",
-                                "/api/chat",
                                 "/ws/**",
                                 "/webjars/**",
                                 "/api/news/**",
                                 "/")
                         .permitAll()
 
-                        // FIX #3: Swagger was fully public — restricted to ADMIN only.
-                        // This prevents attackers from mapping your entire API surface.
-                        // To disable Swagger entirely in prod, set:
-                        //   springdoc.swagger-ui.enabled=false  in application-prod.properties
+                        // FIX #3: Swagger restricted to ADMIN (disable entirely in prod).
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
@@ -67,7 +71,7 @@ public class SecurityConfig {
                         // ✅ Admin routes
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                        // ✅ All other APIs require login
+                        // ✅ Everything else requires login
                         .anyRequest().authenticated())
 
                 // ✅ Rate limit runs first, then JWT auth
@@ -81,19 +85,16 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // ✅ Allow frontend origin
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        // FIX C-6: allowed origins come from app.cors.allowed-origins (env-configured per environment)
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        config.setAllowedOrigins(origins);
 
-        // ✅ Allow headers (important for JWT)
         config.setAllowedHeaders(List.of("*"));
-
-        // ✅ Allow HTTP methods
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-
-        // ✅ Allow cookies / Authorization header
         config.setAllowCredentials(true);
-
-        // ✅ Optional (fix for some browsers)
         config.setExposedHeaders(List.of("Authorization"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

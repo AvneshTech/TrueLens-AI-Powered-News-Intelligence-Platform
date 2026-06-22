@@ -22,7 +22,7 @@ public class PredictionHistoryService {
         return repository.save(history);
     }
 
-    public List<PredictionHistory> getUserHistory(Long userId) {
+    public List<PredictionHistory> getUserHistory(String userId) {
         return repository.findByUserId(userId);
     }
 

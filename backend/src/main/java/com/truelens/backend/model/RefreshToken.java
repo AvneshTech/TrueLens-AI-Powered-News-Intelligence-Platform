@@ -1,43 +1,37 @@
 package com.truelens.backend.model;
 
-import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
-@Entity
+/**
+ * PHASE 2: migrated to MongoDB @Document. token (unique) and email are indexed.
+ */
+@Document(collection = "refresh_token")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "refresh_token", indexes = {
-        @Index(name = "idx_token", columnList = "token"),
-        @Index(name = "idx_email", columnList = "email")
-})
 public class RefreshToken {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(nullable = false, unique = true, length = 500)
+    @Indexed(unique = true)
     private String token;
 
-    @Column(nullable = false)
+    @Indexed
     private String email;
 
-    @Column(nullable = false)
     private LocalDateTime expiryDate;
 
-    @Column(nullable = false)
+    @CreatedDate
     private LocalDateTime createdAt;
-
-    // ✅ AUTO SET createdAt
-    @PrePersist
-    public void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 
     public boolean isExpired() {
         return expiryDate.isBefore(LocalDateTime.now());

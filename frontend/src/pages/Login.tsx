@@ -140,13 +140,12 @@ export const Login = () => {
 
             {/* Forgot Password */}
             <p className="text-center text-xs sm:text-sm text-zinc-600">
-              <button
-                type="button"
-                onClick={() => toast.info("Forgot password feature coming soon!")}
+              <Link
+                to="/auth/forgot-password"
                 className="text-blue-600 font-medium hover:underline"
               >
                 Forgot password?
-              </button>
+              </Link>
             </p>
 
           </form>
