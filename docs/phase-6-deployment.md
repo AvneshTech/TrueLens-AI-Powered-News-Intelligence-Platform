@@ -1,53 +1,70 @@
-# 🚀 Phase 6 – Deployment & Final Polish
+# 🚀 Phase 6 – Deployment & Production Readiness
 
 <p align="center">
-  <b>Transforming the application into a production-ready, scalable, and secure platform</b>
+  <b>Transforming TrueLens into a scalable, secure, and production-ready AI-powered platform</b>
 </p>
 
 ---
 
 ## 🎯 Objective
 
-Prepare the application for **real-world deployment** by enhancing performance, strengthening security, and delivering a seamless user experience.
+Prepare the application for **real-world deployment** by improving performance, strengthening security, optimizing scalability, and delivering a seamless user experience.
 
 ---
 
 ## 🎨 Frontend Enhancements
 
-* 📱 Fully responsive design across mobile, tablet, and desktop
-* 📊 Interactive dashboards with dynamic data visualization
-* 🧭 Intuitive navigation and improved user flow
-* ⚠️ Graceful error handling with user-friendly messages
-* ⏳ Loading states and skeleton screens for better UX
+- 📱 Fully Responsive Design (Mobile / Tablet / Desktop)
+- 📊 Interactive Analytics Dashboards
+- 🧭 Improved Navigation & User Experience
+- ⚠️ User-Friendly Error Handling
+- ⏳ Skeleton Loading States
+- 🔔 Real-Time Notifications
+- 🌙 Dark Mode Support
+- 📝 Notes Export (PDF & JPG)
+- 🤖 Enhanced AI Assistant Interface
 
 ---
 
 ## ⚙️ Backend Optimization
 
-* ⚠️ Centralized exception handling using `GlobalExceptionHandler`
-* 🔐 JWT-based authentication & authorization system
-* 🚫 Secure logout with token blacklisting
-* 🔄 Refresh token mechanism for session persistence
-* ⚡ Optimized REST APIs for performance and scalability
+- ⚠️ Centralized Exception Handling (`GlobalExceptionHandler`)
+- 🔐 JWT Authentication (Access + Refresh Tokens)
+- 📧 Email Verification Workflow
+- 🔑 Forgot Password & Password Reset
+- 🚫 Secure Logout with Token Blacklisting
+- 🔄 Refresh Token Management
+- ⚡ Optimized REST APIs
+- 📊 Analytics & Monitoring APIs
+- 🔔 Notification Management APIs
 
 ---
 
 ## 🔐 Security Enhancements
 
-* 👤 Role-based access control (Admin / User)
-* 🔒 Secured API endpoints with authentication middleware
-* 🛡️ Request filtering and token validation
-* 🔑 Protected routes on both frontend and backend
-* 🧱 Basic protection against common vulnerabilities (CSRF, XSS-ready structure)
+- 👤 Role-Based Access Control (Admin / User)
+- 🔒 Secured API Endpoints
+- 🛡️ JWT Validation & Request Filtering
+- 🔑 Protected Frontend Routes
+- 🚫 Token Blacklisting
+- ⚡ Rate Limiting
+- 🧱 XSS Protection Ready
+- 🧱 CSRF Protection Ready
+- 🛡️ Input Validation & Sanitization
+- 🔍 Audit Logging
 
 ---
 
 ## 📊 Advanced Features
 
-* 📈 Admin analytics dashboard with key metrics
-* 📊 Real-time prediction statistics visualization
-* 😊 Sentiment analysis insights dashboard
-* 📉 Data-driven insights for improved decision-making
+- 📈 Admin Analytics Dashboard
+- 📊 Prediction Analytics
+- 😊 Sentiment Analysis Insights
+- 🕘 Prediction History Tracking
+- 🔔 Real-Time Notification System
+- 📧 Email Verification & Password Recovery
+- 🤖 AI-Powered News Analysis
+- 📝 Notes Management with Export Support
 
 ---
 
@@ -55,68 +72,130 @@ Prepare the application for **real-world deployment** by enhancing performance, 
 
 ```mermaid
 graph TD
-    A["React Frontend (Vercel)"] -->|HTTPS API Calls| B["Spring Boot Backend (Render)"]
-    B -->|REST API| C["Flask ML Microservice (Render)"]
-    B -->|JDBC Connection| D["MySQL Cloud Database"]
 
-    C -->|Model Inference| E["ML Model (.pkl)"]
+A["React Frontend (Vercel)"]
+--> |HTTPS API Calls| B["Spring Boot Backend (Render)"]
 
-    B -->|Authentication| F["JWT + Refresh Tokens"]
+B --> |REST API| C["Python ML Service (Render)"]
+
+B --> |MongoDB Driver| D["MongoDB Atlas"]
+
+B --> |News Data| E["NewsAPI"]
+
+B --> |AI Processing| F["Hugging Face API"]
+
+B --> |Email Verification| G["Resend Email Service"]
+
+C --> |Model Inference| H["ML Model (.pkl)"]
+
+B --> |Authentication| I["JWT + Refresh Tokens"]
 ```
 
 ---
 
 ## 🚀 Deployment Stack
 
-* **Frontend:** Vercel
-* **Backend:** Render (Spring Boot)
-* **ML Service:** Render (Flask API)
-* **Database:** MySQL (Railway / PlanetScale / Aiven)
-* **Authentication:** JWT (Access + Refresh Tokens)
+| Layer | Technology |
+|---------|------------|
+| Frontend | Vercel |
+| Backend | Render |
+| ML Service | Render |
+| Database | MongoDB Atlas |
+| Authentication | JWT + Refresh Tokens |
+| Email Service | Resend |
+| AI Integration | Hugging Face API |
+| News Source | NewsAPI |
 
 ---
 
 ## ✅ Production Readiness Checklist
 
-* ✅ Environment variables secured
-* ✅ CORS configured properly
-* ✅ API endpoints tested in production
-* ✅ Database connected and migrated
-* ✅ Error logging enabled
-* ✅ Build & deployment pipelines verified
+### Infrastructure
+
+- ✅ MongoDB Atlas Connected
+- ✅ Environment Variables Configured
+- ✅ Production Build Verified
+- ✅ Deployment Configurations Tested
+
+### Security
+
+- ✅ JWT Authentication Enabled
+- ✅ Refresh Tokens Enabled
+- ✅ Email Verification Enabled
+- ✅ Token Blacklisting Enabled
+- ✅ Protected Routes Configured
+
+### Backend
+
+- ✅ REST APIs Tested
+- ✅ Error Handling Implemented
+- ✅ Input Validation Added
+- ✅ Analytics APIs Working
+
+### Frontend
+
+- ✅ Responsive UI
+- ✅ Error States
+- ✅ Loading States
+- ✅ Protected Routes
+- ✅ Dashboard Integration
+
+### Database
+
+- ✅ MongoDB Migration Completed
+- ✅ Collections Indexed
+- ✅ Refresh Tokens Stored
+- ✅ Verification Tokens Stored
+- ✅ Notifications Collection Added
 
 ---
 
 ## 📸 Screenshots
 
-> Add your application screenshots below to showcase UI and features
+> Add application screenshots below to showcase UI and features.
 
 ### 🔐 Authentication
 
 ![Login Page](./screenshots/login.png)
+
 ![Register Page](./screenshots/register.png)
+
+### 📧 Email Verification
+
+![Email Verification](./screenshots/email-verification.png)
 
 ### 🏠 Dashboard
 
-![User Dashboard](./screenshots/dashboard.png)
+![Dashboard](./screenshots/dashboard.png)
+
+### 🤖 AI Assistant
+
+![AI Assistant](./screenshots/assistant.png)
+
+### 📰 Fake News Detection
+
+![Prediction Result](./screenshots/prediction.png)
 
 ### 📊 Analytics
 
 ![Analytics Dashboard](./screenshots/analytics.png)
 
-### 🤖 AI / Prediction
+### 🔔 Notifications
 
-![Prediction Result](./screenshots/prediction.png)
+![Notifications](./screenshots/notifications.png)
 
-### 😊 Sentiment Analysis
+### 📝 Notes Management
 
-![Sentiment Analysis](./screenshots/sentiment.png)
+![Notes](./screenshots/notes.png)
 
 ---
 
-## 📝 Notes
+## 🎯 Future Enhancements
 
-* Create a `screenshots/` folder in your repo root
-* Add images with the same names as above or update paths accordingly
-* Use high-quality images (recommended width: 1200px+)
-
+- 🚀 GPT-5.5 / Gemini Integration
+- 🔍 Advanced RAG-Based AI Assistant
+- 📱 Progressive Web App (PWA)
+- 🌎 Multi-Language Support
+- 📈 Real-Time Monitoring Dashboard
+- 🔔 Push Notifications
+- 🧠 AI-Powered News Recommendations
