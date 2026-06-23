@@ -7,6 +7,7 @@ import { Badge } from '../components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import { getWebSocketUrl } from '../utils/websocket';
 
 export default function PredictionHistory() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,7 +29,7 @@ export default function PredictionHistory() {
   // ✅ WebSocket for real-time updates
   useEffect(() => {
     const connectWebSocket = () => {
-      const socket = new SockJS('http://localhost:8080/ws');
+      const socket = new SockJS(getWebSocketUrl());
       const client = new Client({
         webSocketFactory: () => socket,
         reconnectDelay: 5000,

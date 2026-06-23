@@ -9,6 +9,7 @@ import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { useAuth } from "./AuthContext";
 import { apiService, NotificationItem } from "../services/apiService";
+import { getWebSocketUrl } from "../utils/websocket";
 
 type NotificationContextType = {
   notifications: NotificationItem[];
@@ -23,8 +24,7 @@ type NotificationContextType = {
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
-const WS_URL =
-  (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080") + "/ws";
+const WS_URL = getWebSocketUrl();
 
 export const NotificationProvider = ({ children }: any) => {
   const { user } = useAuth();

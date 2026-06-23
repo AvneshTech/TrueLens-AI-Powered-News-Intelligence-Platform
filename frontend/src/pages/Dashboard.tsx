@@ -38,6 +38,7 @@ import { toast } from "sonner"; // Ensure toast is imported!
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { useQuery } from "@tanstack/react-query";
+import { getWebSocketUrl } from "../utils/websocket";
 
 // Map of icons for dynamic stats
 const iconMap: Record<string, any> = {
@@ -90,7 +91,7 @@ export const Dashboard = () => {
   }, [dashboardData]);
 
   const connectWebSocket = () => {
-    const socket = new SockJS('http://localhost:8080/ws');
+    const socket = new SockJS(getWebSocketUrl());
     const client = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
