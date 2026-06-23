@@ -32,7 +32,7 @@ export const Analytics = () => {
     setLoading(true);
     setError(false);
 
-    fetch(`${import.meta.env.VITE_API_URL}/api/analytics`)
+    fetch(`${import.meta.env.VITE_API_URL}/analytics`)
       .then(res => res.json())
       .then(res => {
         setData(res);
