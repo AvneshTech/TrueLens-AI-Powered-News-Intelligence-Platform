@@ -7,20 +7,24 @@
 ---
 
 ## 🎯 Objective
-Design a **robust, scalable, and secure architecture** before starting development.
+
+Design a **robust, scalable, secure, and production-ready architecture** before starting development.
 
 ---
 
 ## ✨ Core Features Finalized
 
-- 🔐 **JWT Authentication** (Access + Refresh Token)
-- 👤 **Role-Based Access Control** (Admin / User)
-- 📰 **News Aggregation System**
-- 🤖 **Fake News Detection (ML Integration)**
-- 📝 **Notes Management System (CRUD + Export)**
-- 💬 **AI Chat Assistant (HuggingFace API)**
-- 📊 **Dashboard Analytics**
-- 🕘 **Prediction History Tracking**
+- 🔐 JWT Authentication (Access + Refresh Token)
+- 📧 Email Verification & Password Reset
+- 👤 Role-Based Access Control (Admin / User)
+- 📰 News Aggregation System
+- 🤖 Fake News Detection (ML Integration)
+- 📝 Notes Management System (CRUD + PDF/JPG Export)
+- 💬 AI Chat Assistant
+- 🔔 Real-Time Notifications
+- 📊 Dashboard Analytics
+- 🕘 Prediction History Tracking
+- 📈 Admin Analytics & Monitoring
 
 ---
 
@@ -28,6 +32,20 @@ Design a **robust, scalable, and secure architecture** before starting developme
 
 ```mermaid
 graph TD
+
 A[React Frontend] --> B[Spring Boot Backend]
-B --> C[Flask ML Service]
-B --> D[MySQL Database]
+
+B --> C[Python ML Service]
+B --> D[(MongoDB Database)]
+
+B --> E[NewsAPI]
+B --> F[Hugging Face API]
+B --> G[Resend Email Service]
+
+D --> H[Users]
+D --> I[Notes]
+D --> J[Prediction History]
+D --> K[Notifications]
+D --> L[Refresh Tokens]
+D --> M[Verification Tokens]
+D --> N[Blacklisted Tokens]
