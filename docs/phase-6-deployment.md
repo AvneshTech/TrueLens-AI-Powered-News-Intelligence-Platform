@@ -301,7 +301,7 @@ VITE_API_BASE_URL=
 
 # 📸 Application Showcase
 
-> Add screenshots demonstrating major platform features.
+ >Major platform features.
 
 - Authentication
 - Dashboard

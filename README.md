@@ -458,7 +458,7 @@ python app.py
 | Dashboard | ![Dashboard](screenshots/dashboard.png) |
 | Fake News Detection | ![Fake News Detection](screenshots/detection.png) |
 | Sentiment Analysis | ![Sentiment Analysis](screenshots/sentiment%20analysis.png) |
-| Prediction History | ![Prediction History](screenshots/notes.png) |
+| Notes | ![Notes](screenshots/notes.png) |
 | Analytics Dashboard | ![Analytics Dashboard](screenshots/analytics.png) |
 | Admin Panel | ![Admin Panel](screenshots/admin%20panel.png) |
 
