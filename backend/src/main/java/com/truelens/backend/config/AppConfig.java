@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 /**
  * Central application-level bean declarations.
@@ -25,5 +27,19 @@ public class AppConfig {
                 .setConnectTimeout(Duration.ofSeconds(5))
                 .setReadTimeout(Duration.ofSeconds(20))
                 .build();
+    }
+
+    /**
+     * PHASE 5: dedicated pool for streaming chat completions.
+     *
+     * The SSE endpoint hands the (blocking, long-lived) provider call off to this
+     * executor immediately so the Tomcat request thread is freed right away — a
+     * 30-second streamed reply would otherwise pin a worker thread for its duration.
+     * Bounded size keeps a burst of concurrent chats from exhausting memory; this is
+     * a plain pool (not virtual threads) since the project targets Java 17.
+     */
+    @Bean
+    public Executor chatStreamingExecutor() {
+        return Executors.newFixedThreadPool(16);
     }
 }

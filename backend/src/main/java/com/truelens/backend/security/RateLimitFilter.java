@@ -85,7 +85,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return DETECT_MAX_PER_MINUTE;
         }
         // FIX C-4: the AI chat + sentiment endpoints proxy paid inference — rate limit them too.
-        if (path.equals("/api/chat") || path.equals("/api/sentiment")) {
+        if (path.equals("/api/chat") || path.equals("/api/chat/stream") || path.equals("/api/sentiment")) {
             return DETECT_MAX_PER_MINUTE;
         }
         return 0; // no limit on other paths

@@ -97,6 +97,21 @@ export interface NotificationItem {
   createdAt?: string;
 }
 
+// ✅ PHASE 5: persisted chat history
+export interface ConversationItem {
+  id: string;
+  title: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ChatMessageItem {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt?: string;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // CONFIG
 // ────────────────────────────────────────────────────────────────────────────
@@ -366,8 +381,8 @@ class APIService {
       message: `Categorize this news article into ONE of these categories: Politics, Sports, Technology, Health, Business, Entertainment, Science, World, Other. Respond ONLY with the category name.\nArticle: ${safeText}`,
     });
 
-    const raw =
-      typeof response.data === "string" ? response.data : response.data?.message;
+    // /api/chat now returns ApiResult<{message: string}> — {success, message, data: {message}}.
+    const raw: string | undefined = response.data?.data?.message;
 
     if (!raw) {
       return { category: "General" };
@@ -497,10 +512,127 @@ class APIService {
     return r.data;
   }
 
-  // ─── CHAT ───────────────────────────────────────────────────────────────
+  // ─── CONVERSATIONS (PHASE 5) ───────────────────────────────────────────────
+  async getConversations(): Promise<ApiResult<ConversationItem[]>> {
+    const r = await this.api.get("/api/conversations");
+    return r.data;
+  }
+
+  async createConversation(): Promise<ApiResult<ConversationItem>> {
+    const r = await this.api.post("/api/conversations");
+    return r.data;
+  }
+
+  async getConversationMessages(
+    conversationId: string,
+  ): Promise<ApiResult<ChatMessageItem[]>> {
+    const r = await this.api.get(`/api/conversations/${conversationId}/messages`);
+    return r.data;
+  }
+
+  async renameConversation(
+    conversationId: string,
+    title: string,
+  ): Promise<ApiResult<ConversationItem>> {
+    const r = await this.api.put(`/api/conversations/${conversationId}`, { title });
+    return r.data;
+  }
+
+  async deleteConversation(conversationId: string): Promise<ApiResult<void>> {
+    const r = await this.api.delete(`/api/conversations/${conversationId}`);
+    return r.data;
+  }
+
+  // ─── CHAT (PHASE 5: streaming) ─────────────────────────────────────────────
+  // Legacy single-shot call — kept for any caller that just wants a plain string
+  // (e.g. categorizeNews) without persisted history or token-by-token UI updates.
   async sendChatMessage(message: string): Promise<string> {
     const response = await this.api.post("/api/chat", { message });
-    return response.data.message;
+    return response.data?.data?.message ?? "";
+  }
+
+  /**
+   * Streams an assistant reply over SSE using fetch (axios can't expose a readable
+   * stream of response chunks in the browser). Handles a single silent 401-refresh
+   * retry to match the behavior of the axios interceptor used everywhere else.
+   *
+   * @param onToken            called with each incremental text chunk
+   * @param onConversationId   called once if the backend created a new conversation
+   */
+  async streamChatMessage(
+    message: string,
+    conversationId: string | null,
+    onToken: (chunk: string) => void,
+    onConversationId: (id: string) => void,
+  ): Promise<void> {
+    const doFetch = async (token: string | null) =>
+      fetch(`${BASE_URL}/api/chat/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ message, conversationId }),
+      });
+
+    let response = await doFetch(getToken());
+
+    // Mirror the axios interceptor's single-retry-on-401 behavior.
+    if (response.status === 401 && getRefreshToken()) {
+      const newToken = await this.refreshAccessToken();
+      if (newToken) {
+        response = await doFetch(newToken);
+      }
+    }
+
+    if (!response.ok || !response.body) {
+      if (response.status === 401) {
+        clearSession();
+        window.location.href = "/auth/login";
+        return;
+      }
+      throw new Error(`Chat stream failed with status ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE events are separated by a blank line; each event may have an
+      // "event:" line and a "data:" line.
+      const events = buffer.split("\n\n");
+      buffer = events.pop() ?? ""; // keep any incomplete trailing event
+
+      for (const rawEvent of events) {
+        let eventName = "message";
+        const dataLines: string[] = [];
+        for (const line of rawEvent.split("\n")) {
+          if (line.startsWith("event:")) {
+            eventName = line.slice(6).trim();
+          } else if (line.startsWith("data:")) {
+            // Per the SSE spec, multiple "data:" lines in one event are joined
+            // with "\n" — and only a single leading space after the colon (if
+            // present) is stripped, not arbitrary whitespace within the token.
+            dataLines.push(line.slice(5).replace(/^ /, ""));
+          }
+        }
+        const data = dataLines.join("\n");
+
+        if (eventName === "token") {
+          onToken(data);
+        } else if (eventName === "conversation") {
+          onConversationId(data);
+        } else if (eventName === "error") {
+          throw new Error(data || "The AI assistant is temporarily unavailable.");
+        }
+        // "done" event needs no handling — the loop ends when the stream closes.
+      }
+    }
   }
 }
 
