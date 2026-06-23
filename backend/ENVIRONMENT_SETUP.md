@@ -1,64 +1,224 @@
-# TrueLens Backend - Environment Setup
+# 🔧 TrueLens Backend - Environment Setup
 
-## Environment Variables Configuration
+This document explains how to configure environment variables required for running the TrueLens Backend locally and in production.
 
-For security reasons, sensitive configuration has been moved to environment variables. Follow these steps to set up your development environment:
+---
 
-### 1. Create Environment Configuration
+# 📋 Prerequisites
 
-Edit `src/main/resources/application-local.properties` with your actual values.
+Before starting the backend, ensure you have:
 
-### 2. Required Environment Variables
+- Java 21+
+- Maven 3.9+
+- MongoDB Atlas Account (or Local MongoDB)
+- NewsAPI Key
+- Hugging Face API Token
+- Resend API Key (for email verification)
 
-If you want to use MySQL instead of the default in-memory H2 database, set the following values:
+---
 
-```properties
-# Database Configuration
-DB_USERNAME=root
-DB_PASSWORD=your_actual_database_password
+# ⚙️ Environment Configuration
 
-# API Keys (get from respective services)
-NEWS_API_KEY=your_newsapi_org_key
-HUGGINGFACE_API_KEY=your_huggingface_key
+Create a `.env` file or configure the following environment variables in your deployment platform.
 
-# JWT Configuration (generate a secure random string)
-JWT_SECRET=your_secure_random_string_minimum_32_chars
+---
+
+# 🗄️ MongoDB Configuration
+
+### Local MongoDB
+
+```env
+MONGODB_URI=mongodb://localhost:27017/truelens
 ```
 
-### 3. How to Get API Keys
+### MongoDB Atlas
 
-- **NewsAPI**: Sign up at https://newsapi.org/ and get your free API key
-- **HuggingFace**: Create account at https://huggingface.co/ and generate an API token
-- **Database**: Use your MySQL database credentials
+```env
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/truelens?retryWrites=true&w=majority
+```
 
-### 4. Running the Application
+---
 
-Make sure to activate the `local` profile when running:
+# 🔐 JWT Configuration
+
+```env
+JWT_SECRET=replace_with_a_secure_32_plus_character_secret
+
+JWT_EXPIRATION=86400000
+```
+
+### Security Recommendation
+
+- Use a secret with at least 32 characters
+- Never commit secrets to GitHub
+- Rotate secrets periodically
+
+---
+
+# 📰 News API Configuration
+
+Used for fetching and verifying news content.
+
+```env
+NEWS_API_KEY=your_newsapi_key
+```
+
+Get your API key:
+
+https://newsapi.org
+
+---
+
+# 🤖 Hugging Face Configuration
+
+Used for sentiment analysis and AI-powered features.
+
+```env
+HUGGINGFACE_API_KEY=your_huggingface_api_key
+
+HUGGINGFACE_MODEL=distilbert-base-uncased-finetuned-sst-2-english
+
+HUGGINGFACE_SENTIMENT_MODEL=cardiffnlp/twitter-roberta-base-sentiment
+```
+
+Generate API token:
+
+https://huggingface.co/settings/tokens
+
+---
+
+# 🧠 ML Service Configuration
+
+Backend communicates with the Flask ML service.
+
+```env
+ML_SERVICE_URL=http://localhost:5000
+```
+
+---
+
+# 📧 Email Verification Configuration
+
+Used for:
+
+- Account Verification
+- Password Reset Emails
+
+```env
+RESEND_API_KEY=your_resend_api_key
+
+MAIL_FROM=TrueLens <onboarding@resend.dev>
+
+APP_FRONTEND_URL=http://localhost:5173
+```
+
+Get API Key:
+
+https://resend.com
+
+---
+
+# 🌐 CORS Configuration
+
+Development:
+
+```env
+APP_CORS_ALLOWED_ORIGINS=http://localhost:5173
+```
+
+Production Example:
+
+```env
+APP_CORS_ALLOWED_ORIGINS=https://truelens.vercel.app
+```
+
+Multiple Origins:
+
+```env
+APP_CORS_ALLOWED_ORIGINS=http://localhost:5173,https://truelens.vercel.app
+```
+
+---
+
+# ⚙️ Server Configuration
+
+```env
+PORT=8080
+
+SPRING_LOGGING_LEVEL=INFO
+```
+
+---
+
+# 🚀 Running Locally
+
+Start the backend using:
 
 ```bash
-# Using Maven
-mvn spring-boot:run -Dspring-boot.run.profiles=local
-
-# Or set environment variable
-export SPRING_PROFILES_ACTIVE=local
 mvn spring-boot:run
 ```
 
-### 5. Security Notes
+Or:
 
-- Never commit `application-local.properties` to version control
-- Use strong, unique passwords for database
-- Generate a secure JWT secret (at least 32 characters)
+```bash
+./mvnw spring-boot:run
+```
+
+Backend URL:
+
+```text
+http://localhost:8080
+```
+
+---
+
+# 📖 API Documentation
+
+After starting the backend:
+
+```text
+http://localhost:8080/swagger-ui/index.html
+```
+
+---
+
+# 🛡️ Security Best Practices
+
+- Never commit `.env` files
+- Store secrets in deployment environment variables
+- Use strong JWT secrets
+- Restrict CORS origins in production
 - Rotate API keys regularly
-- Use environment-specific configurations for production
+- Enable HTTPS in production
 
-### 6. Production Deployment
+---
 
-For production, set these environment variables in your deployment platform:
-- `DB_USERNAME`
-- `DB_PASSWORD`
-- `NEWS_API_KEY`
-- `HUGGINGFACE_API_KEY`
-- `JWT_SECRET`
+# 🌍 Production Environment Variables
 
-The application will use default values if environment variables are not set, but this is not recommended for production.
+Required variables:
+
+```env
+MONGODB_URI
+JWT_SECRET
+NEWS_API_KEY
+HUGGINGFACE_API_KEY
+RESEND_API_KEY
+ML_SERVICE_URL
+APP_FRONTEND_URL
+APP_CORS_ALLOWED_ORIGINS
+```
+
+---
+
+# ✅ Environment Checklist
+
+- MongoDB Connected
+- JWT Secret Configured
+- NewsAPI Key Added
+- Hugging Face Token Added
+- Resend API Key Added
+- Flask ML Service Running
+- Frontend URL Configured
+- CORS Origins Configured
+
+TrueLens Backend is now ready to run.
