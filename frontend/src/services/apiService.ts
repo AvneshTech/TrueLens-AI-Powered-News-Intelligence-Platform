@@ -52,6 +52,10 @@ export interface PredictionHistory {
 export interface DetectionResult {
   label: "REAL" | "FAKE" | "UNCERTAIN";
   confidence: number;
+  // PHASE 6: present only for URL/file analysis
+  explanation?: string;
+  domainHint?: "high_credibility" | "low_credibility";
+  extractedWordCount?: number;
 }
 
 export interface NoteResponse {
@@ -326,8 +330,32 @@ class APIService {
   // that produced duplicate history rows and inflated every analytics count.
   async detectFakeNews(text: string): Promise<DetectionResult> {
     const res = await this.api.post("/api/detect", { text });
+    return this.toDetectionResult(res.data);
+  }
 
-    const data = res.data;
+  // PHASE 6: analyze an article by URL — the backend forwards it to the ML service,
+  // which fetches the page and extracts the article text server-side.
+  async detectFromUrl(url: string): Promise<DetectionResult> {
+    const res = await this.api.post("/api/detect/url", { url });
+    return this.toDetectionResult(res.data);
+  }
+
+  // PHASE 6: analyze an uploaded document (.txt, .pdf, .docx, .csv, .json) — extraction
+  // happens server-side, so the browser never needs a PDF/DOCX parser of its own.
+  async detectFromFile(file: File): Promise<DetectionResult> {
+    const formData = new FormData();
+    formData.append("file", file);
+    // This axios instance sets "Content-Type: application/json" as a default header
+    // (see constructor). That default has been known to win over FormData's
+    // auto-generated multipart boundary in some axios versions, so it's explicitly
+    // unset here rather than relying on auto-detection alone.
+    const res = await this.api.post("/api/detect/file", formData, {
+      headers: { "Content-Type": undefined },
+    });
+    return this.toDetectionResult(res.data);
+  }
+
+  private toDetectionResult(data: any): DetectionResult {
     const raw = String(data.prediction || data.label || "").toUpperCase();
 
     // M-1: preserve UNCERTAIN instead of collapsing it to FAKE.
@@ -336,7 +364,13 @@ class APIService {
     else if (raw === "UNCERTAIN") label = "UNCERTAIN";
     else label = "FAKE";
 
-    return { label, confidence: data.confidence };
+    return {
+      label,
+      confidence: data.confidence,
+      explanation: data.explanation,
+      domainHint: data.domainHint,
+      extractedWordCount: data.extractedWordCount,
+    };
   }
 
   // ─── HISTORY ──────────────────────────────────────────────────────────────

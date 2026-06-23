@@ -26,23 +26,21 @@ import {
   Loader2,
   ShieldCheck,
   ShieldAlert,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
-import apiService from "../services/apiService";
+import apiService, { DetectionResult } from "../services/apiService";
 import { useAuth } from "../context/AuthContext";
 import { useNotification } from "../context/NotificationContext";
 
-// ML service response shape (matches backend PredictionResponse)
-interface DetectionResult {
-  label: "REAL" | "FAKE";
-  confidence: number;
-}
+const ACCEPTED_FILE_TYPES = ".txt,.pdf,.docx,.csv,.json";
 
 export const FakeDetector = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { addNotification } = useNotification();
 
+  const [activeTab, setActiveTab] = useState<"text" | "url" | "file">("text");
   const [headline, setHeadline] = useState("");
   const [content, setContent] = useState("");
   const [url, setUrl] = useState("");
@@ -52,51 +50,60 @@ export const FakeDetector = () => {
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<DetectionResult | null>(null);
 
-  // Derive the text to analyze from whichever tab has input
+  // Derive the text to analyze from the text tab specifically (used only for the
+  // "text" tab — url/file are handled by their own branches in handleAnalyze).
   const getTextToAnalyze = (): string => {
     if (content) return content;
-
     if (headline && headline.split(" ").length > 10) return headline;
-
-    if (url) {
-      toast.error("URL analysis not supported. Please paste full content.");
-      return "";
-    }
-
     return "";
   };
 
   const handleAnalyze = async () => {
-    const text = getTextToAnalyze();
-
-    if (!text || text.split(" ").length < 30) {
-      toast.error("Please enter at least 30 words of content");
-      return;
-    }
-
     setAnalyzing(true);
     setResult(null);
 
     try {
-      const data = await apiService.detectFakeNews(text);
+      let data: DetectionResult;
 
-      const fixedResult: DetectionResult = {
-        label: data.label === "REAL" ? "REAL" : "FAKE",
-        confidence: data.confidence,
-      };
+      if (activeTab === "url") {
+        if (!url.trim()) {
+          toast.error("Please enter a URL to analyze");
+          return;
+        }
+        data = await apiService.detectFromUrl(url.trim());
+      } else if (activeTab === "file") {
+        if (!file) {
+          toast.error("Please choose a file to analyze");
+          return;
+        }
+        data = await apiService.detectFromFile(file);
+      } else {
+        const text = getTextToAnalyze();
+        if (!text || text.split(" ").length < 30) {
+          toast.error("Please enter at least 30 words of content");
+          return;
+        }
+        data = await apiService.detectFakeNews(text);
+      }
 
-      setResult(fixedResult);
-
-      addNotification(`Analysis complete: ${fixedResult.label === "REAL" ? "Real" : "Fake"}`);
+      setResult(data);
+      addNotification(`Analysis complete: ${resultLabel(data.label)}`);
       toast.success("Analysis complete!");
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
+        err?.message ||
         "Analysis failed. Is the ML service running?";
       toast.error(msg);
     } finally {
       setAnalyzing(false);
     }
+  };
+
+  const resultLabel = (label: DetectionResult["label"]) => {
+    if (label === "REAL") return "Real";
+    if (label === "UNCERTAIN") return "Uncertain";
+    return "Fake";
   };
 
   const handleSave = async () => {
@@ -121,26 +128,22 @@ export const FakeDetector = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
-
     setFile(selected);
-
-    if (selected.type === "text/plain") {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setContent(reader.result as string);
-      };
-      reader.readAsText(selected);
-    } else {
-      toast.info("Only .txt files are auto-read. PDF/image OCR coming soon.");
-    }
   };
 
   const confidencePct = result ? Math.round(result.confidence * 100) : 0;
   const isReal = result?.label === "REAL";
+  const isUncertain = result?.label === "UNCERTAIN";
 
   const currentInput = content || (headline && headline.split(" ").filter(Boolean).length > 10 ? headline : "");
   const currentWordCount = currentInput.trim().split(/\s+/).filter(Boolean).length;
-  const isInvalidInput = !currentInput || currentWordCount < 30;
+
+  const isInvalidInput =
+    activeTab === "text"
+      ? !currentInput || currentWordCount < 30
+      : activeTab === "url"
+        ? !url.trim()
+        : !file;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -160,12 +163,12 @@ export const FakeDetector = () => {
               Analyze Content
             </CardTitle>
             <CardDescription className="text-xs sm:text-sm">
-              Paste full article text or upload a document. URL input is not supported.
+              Paste full article text, link to an article, or upload a document.
             </CardDescription>
           </CardHeader>
 
           <CardContent>
-            <Tabs defaultValue="text">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "text" | "url" | "file")}>
               <TabsList className="grid grid-cols-3 w-full text-xs sm:text-sm">
                 <TabsTrigger value="text" className="gap-1 sm:gap-2">
                   <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -200,13 +203,13 @@ export const FakeDetector = () => {
               {/* URL */}
               <TabsContent value="url" className="space-y-3 mt-4">
                 <Input
-                  placeholder="Paste article URL..."
+                  placeholder="https://example.com/news/article"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   className="text-sm"
                 />
                 <p className="text-xs text-zinc-500">
-                  URL analysis not supported yet. Please paste full article content instead.
+                  We'll fetch the page and extract the article text automatically.
                 </p>
               </TabsContent>
 
@@ -214,13 +217,13 @@ export const FakeDetector = () => {
               <TabsContent value="file" className="space-y-3 mt-4">
                 <input
                   type="file"
-                  accept=".txt,.pdf,.jpg,.png"
+                  accept={ACCEPTED_FILE_TYPES}
                   onChange={handleFileChange}
                   className="text-xs"
                 />
                 <p className="text-xs text-zinc-500">
-                  .txt files are read automatically. PDF/image support coming
-                  soon.
+                  Supports .txt, .pdf, .docx, .csv, and .json (max 10MB). Text is
+                  extracted automatically — no need to copy/paste.
                 </p>
                 {file && (
                   <p className="text-xs text-green-600">Loaded: {file.name}</p>
@@ -272,26 +275,45 @@ export const FakeDetector = () => {
                 <div className="flex items-center gap-2 sm:gap-3">
                   {isReal ? (
                     <ShieldCheck className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 flex-shrink-0" />
+                  ) : isUncertain ? (
+                    <Info className="w-6 h-6 sm:w-8 sm:h-8 text-amber-500 flex-shrink-0" />
                   ) : (
                     <ShieldAlert className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 flex-shrink-0" />
                   )}
                   <div className="min-w-0">
                     <p className="text-lg sm:text-xl font-bold">
-                      {isReal ? "Real News" : "Fake News"}
+                      {isReal ? "Real News" : isUncertain ? "Uncertain" : "Fake News"}
                     </p>
                     <p className="text-xs sm:text-sm text-zinc-500 truncate">
                       ML confidence: {confidencePct}%
+                      {result.extractedWordCount
+                        ? ` · ${result.extractedWordCount} words analyzed`
+                        : ""}
                     </p>
                   </div>
                 </div>
 
                 {/* Badge */}
                 <Badge
-                  variant={isReal ? "default" : "destructive"}
+                  variant={isReal ? "default" : isUncertain ? "secondary" : "destructive"}
                   className="text-xs sm:text-sm"
                 >
-                  {isReal ? "VERIFIED REAL" : "LIKELY FAKE"}
+                  {isReal ? "VERIFIED REAL" : isUncertain ? "UNCERTAIN" : "LIKELY FAKE"}
                 </Badge>
+
+                {/* Domain / explanation context (URL analysis only) */}
+                {result.explanation && (
+                  <div
+                    className={`flex gap-2 rounded-lg p-3 text-xs sm:text-sm ${
+                      result.domainHint === "low_credibility"
+                        ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                        : "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+                    }`}
+                  >
+                    <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span>{result.explanation}</span>
+                  </div>
+                )}
 
                 {/* Confidence Bar */}
                 <div className="space-y-2">
@@ -321,7 +343,7 @@ export const FakeDetector = () => {
             ) : (
               <div className="text-center py-8 sm:py-10 text-zinc-400">
                 <Search className="w-8 sm:w-10 h-8 sm:h-10 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">Enter text and click Analyze</p>
+                <p className="text-sm">Enter text, a URL, or upload a file, then click Analyze</p>
               </div>
             )}
           </CardContent>

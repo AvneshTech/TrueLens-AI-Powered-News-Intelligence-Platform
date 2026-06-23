@@ -73,7 +73,7 @@ public class SecurityConfig {
                 // ✅ Rate limit runs first, then JWT auth
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
+ 
         return http.build();
     }
 
