@@ -22,6 +22,8 @@ const fallback = {
   stats: []
 };
 
+import { getApiUrl } from '../utils/api';
+
 export const Analytics = () => {
 
   const [data, setData] = useState<any>(null);
@@ -32,7 +34,7 @@ export const Analytics = () => {
     setLoading(true);
     setError(false);
 
-    fetch("http://localhost:8080/api/analytics")
+    fetch(getApiUrl('/analytics'))
       .then(res => res.json())
       .then(res => {
         setData(res);
