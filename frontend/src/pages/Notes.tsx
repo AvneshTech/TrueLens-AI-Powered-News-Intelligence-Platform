@@ -113,9 +113,9 @@ export const Notes = () => {
     }
   };
 
-  const handleDeleteNote = async (id: number) => {
+  const handleDeleteNote = async (id: string) => {
     try {
-      const response = await apiService.deleteNote(String(id));
+      const response = await apiService.deleteNote(id);
       if (response.success) {
         setNotes((prev) => prev.filter((note) => note.id !== id));
         toast.success("Note deleted");

@@ -51,7 +51,7 @@ interface CategoryEntry {
 }
 
 interface ArticleEntry {
-  id: number;
+  id: string;
   title: string;
   sentiment: "Positive" | "Neutral" | "Negative";
   score: number;
@@ -105,7 +105,7 @@ export default function Sentiment() {
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryEntry[]>([]);
   const [recentArticles, setRecentArticles] = useState<ArticleEntry[]>([]);
 
-  const sentimentCache = useRef<Map<number, { sentiment: "Positive" | "Neutral" | "Negative";
+  const sentimentCache = useRef<Map<string, { sentiment: "Positive" | "Neutral" | "Negative";
     score: number }>>(new Map());
   const MAX_HISTORY_ANALYSIS = 5;
   const MAX_SENTIMENT_CHARS = 2000;
@@ -169,10 +169,11 @@ export default function Sentiment() {
 
       const analyzed = await Promise.all(
         limited.map(async (item) => {
-          const cached = sentimentCache.current.get(item.id);
+          const key = String(item.id);
+          const cached = sentimentCache.current.get(key);
           if (cached) {
             return {
-              id: item.id,
+              id: key,
               title: item.newsTitle || item.content.slice(0, 50),
               sentiment: cached.sentiment,
               score: cached.score,
@@ -182,10 +183,10 @@ export default function Sentiment() {
           }
 
           const result = await apiService.analyzeSentiment(item.content);
-          sentimentCache.current.set(item.id, result);
+          sentimentCache.current.set(key, result);
 
           return {
-            id: item.id,
+            id: key,
             title: item.newsTitle || item.content.slice(0, 50),
             sentiment: result.sentiment,
             score: result.score,
@@ -282,7 +283,7 @@ export default function Sentiment() {
       }
 
       const newArticle: any = {
-        id: Date.now(),
+        id: Date.now().toString(),
         title: inputTitle || trimmedInput.slice(0, 50) + "...",
         sentiment: sentimentResult.sentiment,
         score: sentimentResult.score,
