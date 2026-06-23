@@ -115,9 +115,7 @@ export interface ChatMessageItem {
 // ────────────────────────────────────────────────────────────────────────────
 // CONFIG
 // ────────────────────────────────────────────────────────────────────────────
-import { getApiBase } from "../utils/api";
-
-const BASE_URL = getApiBase();
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 function getToken(): string | null {
   return localStorage.getItem("token") || sessionStorage.getItem("token");
