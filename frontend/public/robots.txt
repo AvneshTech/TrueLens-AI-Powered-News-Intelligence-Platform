@@ -1,0 +1,12 @@
+# TrueLens robots.txt
+User-agent: *
+Allow: /
+# Authenticated app areas have no SEO value and should not be crawled
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /settings
+Disallow: /profile
+Disallow: /notes
+Disallow: /predictions
+
+Sitemap: https://app.truelens.com/sitemap.xml

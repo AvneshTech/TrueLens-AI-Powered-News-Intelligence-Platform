@@ -63,16 +63,31 @@ export interface NoteResponse {
   title: string;
   content: string;
   category?: string;
-  tags?: string;
+  // FIX M-8: was a comma-separated string while parts of the UI treated it as an
+  // array — modeled as a proper string[] now, matching the backend's List<String>.
+  tags?: string[];
   createdAt: string;
   updatedAt?: string;
+  // PHASE 7: present on the owner's view only — PublicNoteResponse (the shared-link
+  // view) never includes these.
+  shared?: boolean;
+  shareToken?: string;
 }
 
 export interface NoteRequest {
   title: string;
   content: string;
   category?: string;
-  tags?: string;
+  tags?: string[];
+}
+
+// PHASE 7: the narrower, unauthenticated shape returned by GET /api/public/notes/{token}.
+export interface PublicNoteResponse {
+  title: string;
+  content: string;
+  category?: string;
+  tags?: string[];
+  createdAt: string;
 }
 
 export interface AdminAnalytics {
@@ -82,12 +97,38 @@ export interface AdminAnalytics {
   realNews: number;
 }
 
+export interface DashboardActivityPoint {
+  name: string;
+  value: number;
+}
+
+export interface DashboardPieSlice {
+  name: string;
+  value: number;
+  color?: string;
+}
+
+export interface DashboardCategoryPoint {
+  name: string;
+  fake: number;
+  real: number;
+}
+
+// Matches AdminAnalyticsService.getRecentActivity() exactly — note there is
+// deliberately no `id`, `source`, or `time` field; the backend never sends them.
+export interface DashboardRecentActivity {
+  title: string;
+  result: "REAL" | "FAKE" | "UNCERTAIN" | "UNKNOWN";
+  confidence: number;
+  createdAt: string;
+}
+
 export interface DashboardResponse {
   stats: { title: string; value: string; change: string; trend: string }[];
-  activityData: any[];
-  pieData: any[];
-  categoryData: any[];
-  recentActivity: any[];
+  activityData: DashboardActivityPoint[];
+  pieData: DashboardPieSlice[];
+  categoryData: DashboardCategoryPoint[];
+  recentActivity: DashboardRecentActivity[];
 }
 
 export interface NotificationItem {
@@ -475,6 +516,26 @@ class APIService {
 
   async deleteNote(id: string): Promise<ApiResult<void>> {
     const response = await this.api.delete(`/api/notes/${id}`);
+    return response.data;
+  }
+
+  // ─── NOTES: SHARING (PHASE 7) ──────────────────────────────────────────────
+  async shareNote(id: string): Promise<ApiResult<NoteResponse>> {
+    const response = await this.api.post(`/api/notes/${id}/share`);
+    return response.data;
+  }
+
+  async unshareNote(id: string): Promise<ApiResult<NoteResponse>> {
+    const response = await this.api.delete(`/api/notes/${id}/share`);
+    return response.data;
+  }
+
+  // Deliberately does NOT go through `this.api` — that axios instance attaches the
+  // viewer's auth token (if any) and triggers the 401 -> refresh -> redirect-to-login
+  // flow on failure, neither of which makes sense for a page anyone can open without
+  // an account. A bare axios call keeps this endpoint's anonymous nature honest.
+  async getPublicNote(shareToken: string): Promise<ApiResult<PublicNoteResponse>> {
+    const response = await axios.get(`${BASE_URL}/api/public/notes/${shareToken}`);
     return response.data;
   }
 

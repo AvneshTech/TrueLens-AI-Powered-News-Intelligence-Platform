@@ -1,33 +1,11 @@
 import { useEffect, useState } from "react";
-import API from "../services/api";
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  PieChart,
-  Pie,
-  Cell,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+  BarChart, Bar, LineChart, Line, AreaChart, Area,
+  PieChart, Pie, Cell, RadarChart, Radar,
+  PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 
 // 🔥 Skeleton Loader Component
 const Skeleton = ({ className }: { className?: string }) => (
@@ -41,10 +19,11 @@ const fallback = {
   category: [{ category: "...", accuracy: 0 }],
   accuracy: [{ subject: "...", A: 0 }],
   daily: [{ day: "...", analyses: 0 }],
-  stats: [],
+  stats: []
 };
 
 export const Analytics = () => {
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -53,9 +32,10 @@ export const Analytics = () => {
     setLoading(true);
     setError(false);
 
-    API.get("/analytics")
-      .then((res) => {
-        setData(res.data);
+    fetch("http://localhost:8080/api/analytics")
+      .then(res => res.json())
+      .then(res => {
+        setData(res);
         setLoading(false);
       })
       .catch(() => {
@@ -72,6 +52,7 @@ export const Analytics = () => {
 
   return (
     <div className="space-y-6 transition-all duration-500">
+
       {/* HEADER */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Analytics</h1>
@@ -95,6 +76,7 @@ export const Analytics = () => {
 
       {/* CHART GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
         {/* AREA CHART */}
         <Card className="relative overflow-hidden">
           {loading && <Skeleton className="absolute inset-0 z-10" />}
@@ -106,10 +88,7 @@ export const Analytics = () => {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={d.monthly}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  className="stroke-zinc-800"
-                />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-800" />
                 <XAxis dataKey="month" stroke="#666" />
                 <YAxis stroke="#666" />
                 <Tooltip />
@@ -166,10 +145,7 @@ export const Analytics = () => {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={d.category}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  className="stroke-zinc-800"
-                />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-800" />
                 <XAxis dataKey="category" stroke="#666" />
                 <YAxis stroke="#666" />
                 <Tooltip />
@@ -221,10 +197,7 @@ export const Analytics = () => {
           <CardContent>
             <ResponsiveContainer width="100%" height={350}>
               <LineChart data={d.monthly}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  className="stroke-zinc-800"
-                />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-800" />
                 <XAxis dataKey="month" stroke="#666" />
                 <YAxis stroke="#666" />
                 <Tooltip />
@@ -235,12 +208,19 @@ export const Analytics = () => {
                   stroke={loading ? "#444" : "#3b82f6"}
                   strokeWidth={2}
                 />
-                <Line dataKey="real" stroke={loading ? "#444" : "#10b981"} />
-                <Line dataKey="fake" stroke={loading ? "#444" : "#ef4444"} />
+                <Line
+                  dataKey="real"
+                  stroke={loading ? "#444" : "#10b981"}
+                />
+                <Line
+                  dataKey="fake"
+                  stroke={loading ? "#444" : "#ef4444"}
+                />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
+
       </div>
 
       {/* EMPTY STATE */}
@@ -249,6 +229,7 @@ export const Analytics = () => {
           No analytics data available yet
         </div>
       )}
+
     </div>
   );
 };

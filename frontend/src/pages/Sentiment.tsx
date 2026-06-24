@@ -29,7 +29,6 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
-import { getWebSocketUrl } from '../utils/websocket';
 
 interface SentimentData {
   sentiment: "Positive" | "Neutral" | "Negative";
@@ -127,7 +126,7 @@ export default function Sentiment() {
   // ✅ WebSocket for real-time updates
   useEffect(() => {
     const connectWebSocket = () => {
-      const socket = new SockJS(getWebSocketUrl());
+      const socket = new SockJS('http://localhost:8080/ws');
       const client = new Client({
         webSocketFactory: () => socket,
         reconnectDelay: 5000,
@@ -170,11 +169,10 @@ export default function Sentiment() {
 
       const analyzed = await Promise.all(
         limited.map(async (item) => {
-          const key = String(item.id);
-          const cached = sentimentCache.current.get(key);
+          const cached = sentimentCache.current.get(item.id);
           if (cached) {
             return {
-              id: key,
+              id: item.id,
               title: item.newsTitle || item.content.slice(0, 50),
               sentiment: cached.sentiment,
               score: cached.score,
@@ -184,10 +182,10 @@ export default function Sentiment() {
           }
 
           const result = await apiService.analyzeSentiment(item.content);
-          sentimentCache.current.set(key, result);
+          sentimentCache.current.set(item.id, result);
 
           return {
-            id: key,
+            id: item.id,
             title: item.newsTitle || item.content.slice(0, 50),
             sentiment: result.sentiment,
             score: result.score,
@@ -284,7 +282,7 @@ export default function Sentiment() {
       }
 
       const newArticle: any = {
-        id: Date.now().toString(),
+        id: Date.now(),
         title: inputTitle || trimmedInput.slice(0, 50) + "...",
         sentiment: sentimentResult.sentiment,
         score: sentimentResult.score,

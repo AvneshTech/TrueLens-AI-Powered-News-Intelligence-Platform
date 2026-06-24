@@ -1,26 +1,43 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
+import { Suspense, lazy } from "react";
+import type { ReactNode } from "react";
 import { AdminRoute } from "../components/AdminRoute";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AuthLayout } from "../layouts/AuthLayout";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 
-import { AdminPanel } from "../pages/AdminPanel";
-import { Analytics } from "../pages/Analytics";
-import { ChatAssistant } from "../pages/ChatAssistant";
-import { Dashboard } from "../pages/Dashboard";
-import { FakeDetector } from "../pages/FakeDetector";
-import { Login } from "../pages/Login";
-import { NewsFeed } from "../pages/NewsFeed";
-import { Notes } from "../pages/Notes";
-import PredictionHistory from "../pages/PredictionHistory";
-import { Profile } from "../pages/Profile";
-import { Register } from "../pages/Register";
-import { ForgotPassword } from "../pages/ForgotPassword";
-import { ResetPassword } from "../pages/ResetPassword";
-import { VerifyEmail } from "../pages/VerifyEmail";
-import Sentiment from "../pages/Sentiment";
-import { Settings } from "../pages/Settings";
-import UserProfile from "../pages/UserProfile";
+// PHASE 11: route-level code-splitting. Each page is its own lazily-loaded
+// chunk, so the initial bundle only ships the shell + the first route the user
+// hits, not every page at once. Named exports are adapted to the default-export
+// shape React.lazy() requires.
+const Dashboard = lazy(() => import("../pages/Dashboard").then((m) => ({ default: m.Dashboard })));
+const NewsFeed = lazy(() => import("../pages/NewsFeed").then((m) => ({ default: m.NewsFeed })));
+const FakeDetector = lazy(() => import("../pages/FakeDetector").then((m) => ({ default: m.FakeDetector })));
+const ChatAssistant = lazy(() => import("../pages/ChatAssistant").then((m) => ({ default: m.ChatAssistant })));
+const Notes = lazy(() => import("../pages/Notes").then((m) => ({ default: m.Notes })));
+const Analytics = lazy(() => import("../pages/Analytics").then((m) => ({ default: m.Analytics })));
+const Sentiment = lazy(() => import("../pages/Sentiment"));
+const PredictionHistory = lazy(() => import("../pages/PredictionHistory"));
+const UserProfile = lazy(() => import("../pages/UserProfile"));
+const AdminPanel = lazy(() => import("../pages/AdminPanel").then((m) => ({ default: m.AdminPanel })));
+const Profile = lazy(() => import("../pages/Profile").then((m) => ({ default: m.Profile })));
+const Settings = lazy(() => import("../pages/Settings").then((m) => ({ default: m.Settings })));
+const PublicNote = lazy(() => import("../pages/PublicNote").then((m) => ({ default: m.PublicNote })));
+const Login = lazy(() => import("../pages/Login").then((m) => ({ default: m.Login })));
+const Register = lazy(() => import("../pages/Register").then((m) => ({ default: m.Register })));
+const VerifyEmail = lazy(() => import("../pages/VerifyEmail").then((m) => ({ default: m.VerifyEmail })));
+const ForgotPassword = lazy(() => import("../pages/ForgotPassword").then((m) => ({ default: m.ForgotPassword })));
+const ResetPassword = lazy(() => import("../pages/ResetPassword").then((m) => ({ default: m.ResetPassword })));
+
+function PageFallback() {
+  return (
+    <div className="flex h-full w-full items-center justify-center p-12">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+    </div>
+  );
+}
+
+const withSuspense = (node: ReactNode) => <Suspense fallback={<PageFallback />}>{node}</Suspense>;
 
 export const router = createBrowserRouter([
   // 🔐 Protected routes
@@ -32,29 +49,35 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Dashboard /> },
+      { index: true, element: withSuspense(<Dashboard />) },
 
-      { path: "news", element: <NewsFeed /> },
-      { path: "detector", element: <FakeDetector /> },
-      { path: "chat", element: <ChatAssistant /> },
-      { path: "notes", element: <Notes /> },
-      { path: "analytics", element: <Analytics /> },
-      { path: "sentiment", element: <Sentiment /> },
-      { path: "predictions", element: <PredictionHistory /> },
-      { path: "user-profile", element: <UserProfile /> },
+      { path: "news", element: withSuspense(<NewsFeed />) },
+      { path: "detector", element: withSuspense(<FakeDetector />) },
+      { path: "chat", element: withSuspense(<ChatAssistant />) },
+      { path: "notes", element: withSuspense(<Notes />) },
+      { path: "analytics", element: withSuspense(<Analytics />) },
+      { path: "sentiment", element: withSuspense(<Sentiment />) },
+      { path: "predictions", element: withSuspense(<PredictionHistory />) },
+      { path: "user-profile", element: withSuspense(<UserProfile />) },
 
       {
         path: "admin",
         element: (
-          <AdminRoute>
-            <AdminPanel />
-          </AdminRoute>
+          <AdminRoute>{withSuspense(<AdminPanel />)}</AdminRoute>
         ),
       },
 
-      { path: "profile", element: <Profile /> },
-      { path: "settings", element: <Settings /> },
+      { path: "profile", element: withSuspense(<Profile />) },
+      { path: "settings", element: withSuspense(<Settings />) },
     ],
+  },
+
+  // 🌐 PHASE 7: public, unauthenticated — anyone with the link can view a shared
+  // note without a TrueLens account, so this must sit outside both ProtectedRoute
+  // and AuthLayout (which assumes a logged-out visitor, not a generic public page).
+  {
+    path: "/notes/shared/:shareToken",
+    element: withSuspense(<PublicNote />),
   },
 
   // 🔑 Auth routes
@@ -62,11 +85,11 @@ export const router = createBrowserRouter([
     path: "/auth",
     element: <AuthLayout />,
     children: [
-      { path: "login", element: <Login /> },
-      { path: "register", element: <Register /> },
-      { path: "verify-email", element: <VerifyEmail /> },
-      { path: "forgot-password", element: <ForgotPassword /> },
-      { path: "reset-password", element: <ResetPassword /> },
+      { path: "login", element: withSuspense(<Login />) },
+      { path: "register", element: withSuspense(<Register />) },
+      { path: "verify-email", element: withSuspense(<VerifyEmail />) },
+      { path: "forgot-password", element: withSuspense(<ForgotPassword />) },
+      { path: "reset-password", element: withSuspense(<ResetPassword />) },
     ],
   },
 

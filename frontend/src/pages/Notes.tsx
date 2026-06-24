@@ -11,16 +11,43 @@ import {
 } from "../components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "../components/ui/dropdown-menu";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import {
   Plus, Trash2, Edit, Search, Loader2, FileText,
-  MoreVertical, Download,
+  MoreVertical, Download, Share2, Copy, Check, Image as ImageIcon,
+  Printer, FileDown, Link2Off,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiService, NoteResponse } from "../services/apiService";
 import { useAuth } from "../context/AuthContext";
+import { exportNoteAsPdf, exportNoteAsImage, printNote } from "../lib/noteExport";
+
+// Form state keeps tags as a single comma-separated string for simple typing —
+// converted to/from string[] only at the API boundary (handleCreateNote/handleEditNote
+// and openEditDialog), which is where the backend's List<String> actually matters.
+interface NoteFormData {
+  title: string;
+  content: string;
+  category: string;
+  tags: string;
+}
+
+const EMPTY_FORM: NoteFormData = { title: "", content: "", category: "", tags: "" };
+
+function tagsStringToArray(tags: string): string[] | undefined {
+  const parsed = tags
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+  return parsed.length > 0 ? parsed : undefined;
+}
+
+function tagsArrayToString(tags?: string[]): string {
+  return (tags ?? []).join(", ");
+}
 
 export const Notes = () => {
   const { user } = useAuth();
@@ -30,10 +57,16 @@ export const Notes = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState<NoteResponse | null>(null);
-  const [formData, setFormData] = useState({
-    title: "", content: "", category: "", tags: "",
-  });
+  const [formData, setFormData] = useState<NoteFormData>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+
+  // Sharing
+  const [shareNote, setShareNote] = useState<NoteResponse | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // Export (per-note loading state so only the clicked note's menu shows a spinner)
+  const [exportingNoteId, setExportingNoteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) loadNotes();
@@ -65,13 +98,12 @@ export const Notes = () => {
         title: formData.title,
         content: formData.content,
         category: formData.category || undefined,
-        // ✅ FIX: backend stores tags as a String — send comma-separated string directly
-        tags: formData.tags || undefined,
+        tags: tagsStringToArray(formData.tags),
       });
       if (response.success && response.data) {
         setNotes((prev) => [response.data!, ...prev]);
         setIsCreateOpen(false);
-        setFormData({ title: "", content: "", category: "", tags: "" });
+        setFormData(EMPTY_FORM);
         toast.success("Note created successfully!");
       }
     } catch (error) {
@@ -89,12 +121,11 @@ export const Notes = () => {
     }
     setSaving(true);
     try {
-      const response = await apiService.updateNote(String(currentNote.id), {
+      const response = await apiService.updateNote(currentNote.id, {
         title: formData.title,
         content: formData.content,
         category: formData.category || undefined,
-        // ✅ FIX: send as string
-        tags: formData.tags || undefined,
+        tags: tagsStringToArray(formData.tags),
       });
       if (response.success && response.data) {
         setNotes((prev) =>
@@ -102,7 +133,7 @@ export const Notes = () => {
         );
         setIsEditOpen(false);
         setCurrentNote(null);
-        setFormData({ title: "", content: "", category: "", tags: "" });
+        setFormData(EMPTY_FORM);
         toast.success("Note updated!");
       }
     } catch (error) {
@@ -113,6 +144,8 @@ export const Notes = () => {
     }
   };
 
+  // FIX: id is a string (Mongo ObjectId) since the Phase 2 migration — this
+  // previously typed the parameter as `number`, which never matched note.id.
   const handleDeleteNote = async (id: string) => {
     try {
       const response = await apiService.deleteNote(id);
@@ -129,7 +162,6 @@ export const Notes = () => {
   const handleSearch = async () => {
     if (!searchQuery) { loadNotes(); return; }
     try {
-      // ✅ FIX: searchNotes takes keyword string directly
       const response = await apiService.searchNotes(searchQuery);
       if (response.success) {
         setNotes(response.data);
@@ -146,8 +178,7 @@ export const Notes = () => {
       title: note.title,
       content: note.content,
       category: note.category || "",
-      // ✅ FIX: tags is a String from backend — use directly
-      tags: note.tags || "",
+      tags: tagsArrayToString(note.tags),
     });
     setIsEditOpen(true);
   };
@@ -168,6 +199,89 @@ export const Notes = () => {
     a.download = `${note.title}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // ─── PHASE 7: export (PDF / JPG / PNG / print) ───────────────────────────
+  const handleExport = async (note: NoteResponse, format: "pdf" | "jpg" | "png" | "print") => {
+    setExportingNoteId(note.id);
+    try {
+      if (format === "pdf") {
+        await exportNoteAsPdf(note);
+      } else if (format === "print") {
+        printNote(note);
+      } else {
+        await exportNoteAsImage(note, format);
+      }
+    } catch (error) {
+      console.error(`Failed to export note as ${format}:`, error);
+      toast.error(
+        error instanceof Error ? error.message : `Failed to export as ${format.toUpperCase()}`,
+      );
+    } finally {
+      setExportingNoteId(null);
+    }
+  };
+
+  // ─── PHASE 7: sharing ─────────────────────────────────────────────────────
+  const openShareDialog = async (note: NoteResponse) => {
+    setShareNote(note);
+    setLinkCopied(false);
+
+    // Already shared — no need to call the backend again, the link is still live.
+    if (note.shared && note.shareToken) return;
+
+    setShareLoading(true);
+    try {
+      const response = await apiService.shareNote(note.id);
+      if (response.success && response.data) {
+        setShareNote(response.data);
+        setNotes((prev) =>
+          prev.map((n) => (n.id === note.id ? response.data! : n)),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to share note:", error);
+      toast.error("Failed to create share link");
+      setShareNote(null);
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleRevokeShare = async () => {
+    if (!shareNote) return;
+    setShareLoading(true);
+    try {
+      const response = await apiService.unshareNote(shareNote.id);
+      if (response.success && response.data) {
+        setNotes((prev) =>
+          prev.map((n) => (n.id === shareNote.id ? response.data! : n)),
+        );
+        toast.success("Sharing revoked — the old link no longer works");
+      }
+      setShareNote(null);
+    } catch (error) {
+      console.error("Failed to revoke share:", error);
+      toast.error("Failed to revoke sharing");
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const shareUrl = shareNote?.shareToken
+    ? `${window.location.origin}/notes/shared/${shareNote.shareToken}`
+    : "";
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setLinkCopied(true);
+      toast.success("Link copied to clipboard");
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy link:", error);
+      toast.error("Couldn't copy automatically — please copy the link manually");
+    }
   };
 
   if (loading) {
@@ -237,17 +351,47 @@ export const Notes = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1 pr-4">
                     <CardTitle className="text-lg mb-2 break-words">{note.title}</CardTitle>
-                    {note.category && (
-                      <Badge variant="secondary" className="mb-2">{note.category}</Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {note.category && (
+                        <Badge variant="secondary">{note.category}</Badge>
+                      )}
+                      {note.shared && (
+                        <Badge variant="outline" className="text-green-700 border-green-300 dark:text-green-400 dark:border-green-800">
+                          <Share2 className="w-3 h-3 mr-1" />Shared
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500">
-                        <MoreVertical className="h-4 w-4" />
+                      <Button
+                        variant="ghost" size="icon"
+                        className="h-8 w-8 text-zinc-500"
+                        disabled={exportingNoteId === note.id}
+                      >
+                        {exportingNoteId === note.id
+                          ? <Loader2 className="h-4 w-4 animate-spin" />
+                          : <MoreVertical className="h-4 w-4" />}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openShareDialog(note)}>
+                        <Share2 className="mr-2 h-4 w-4" />
+                        {note.shared ? "Manage sharing" : "Share"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleExport(note, "pdf")}>
+                        <FileDown className="mr-2 h-4 w-4" />Export as PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExport(note, "png")}>
+                        <ImageIcon className="mr-2 h-4 w-4" />Export as PNG
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExport(note, "jpg")}>
+                        <ImageIcon className="mr-2 h-4 w-4" />Export as JPG
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExport(note, "print")}>
+                        <Printer className="mr-2 h-4 w-4" />Print
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => downloadAsTxt(note)}>
                         <Download className="mr-2 h-4 w-4" />Download TXT
                       </DropdownMenuItem>
@@ -260,11 +404,10 @@ export const Notes = () => {
                   {note.content}
                 </p>
 
-                {/* ✅ FIX: tags is a String — split on comma for display */}
-                {note.tags && (
+                {note.tags && note.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-4">
-                    {note.tags.split(",").filter(t => t.trim()).map((tag, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">{tag.trim()}</Badge>
+                    {note.tags.map((tag, i) => (
+                      <Badge key={i} variant="outline" className="text-xs">{tag}</Badge>
                     ))}
                   </div>
                 )}
@@ -309,7 +452,7 @@ export const Notes = () => {
             </div>
             <div className="space-y-2">
               <Label>Tags</Label>
-              <Input value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} placeholder="java,spring,todo (comma-separated)" />
+              <Input value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} placeholder="java, spring, todo (comma-separated)" />
             </div>
             <div className="space-y-2">
               <Label>Content *</Label>
@@ -317,7 +460,7 @@ export const Notes = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsCreateOpen(false); setFormData({ title: "", content: "", category: "", tags: "" }); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setIsCreateOpen(false); setFormData(EMPTY_FORM); }}>Cancel</Button>
             <Button onClick={handleCreateNote} disabled={saving}>
               {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating...</> : <><Plus className="w-4 h-4 mr-2" />Create Note</>}
             </Button>
@@ -343,7 +486,7 @@ export const Notes = () => {
             </div>
             <div className="space-y-2">
               <Label>Tags</Label>
-              <Input value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} placeholder="java,spring,todo" />
+              <Input value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} placeholder="java, spring, todo" />
             </div>
             <div className="space-y-2">
               <Label>Content</Label>
@@ -351,10 +494,47 @@ export const Notes = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsEditOpen(false); setCurrentNote(null); setFormData({ title: "", content: "", category: "", tags: "" }); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setIsEditOpen(false); setCurrentNote(null); setFormData(EMPTY_FORM); }}>Cancel</Button>
             <Button onClick={handleEditNote} disabled={saving}>
               {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : "Save Changes"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Share Dialog */}
+      <Dialog open={!!shareNote} onOpenChange={(open) => !open && setShareNote(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Share "{shareNote?.title}"</DialogTitle>
+            <DialogDescription>
+              Anyone with this link can view this note — no TrueLens account needed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            {shareLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+              </div>
+            ) : shareUrl ? (
+              <div className="flex gap-2">
+                <Input value={shareUrl} readOnly className="font-mono text-xs" />
+                <Button variant="outline" size="icon" onClick={handleCopyLink} className="flex-shrink-0">
+                  {linkCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter className="flex items-center sm:justify-between">
+            <Button
+              variant="ghost"
+              className="text-red-600 hover:text-red-700"
+              onClick={handleRevokeShare}
+              disabled={shareLoading}
+            >
+              <Link2Off className="w-4 h-4 mr-2" />Revoke access
+            </Button>
+            <Button variant="outline" onClick={() => setShareNote(null)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
