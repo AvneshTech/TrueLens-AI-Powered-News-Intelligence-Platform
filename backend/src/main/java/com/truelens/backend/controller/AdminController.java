@@ -71,9 +71,11 @@ public class AdminController {
         DashboardResponse dashboardData = DashboardResponse.builder()
                 .stats(stats)
                 .pieData(pieData)
-                .activityData(adminAnalyticsService.getActivityLast7Days())   // FIX H-3
-                .categoryData(adminAnalyticsService.getCategoryBreakdown())    // FIX H-3
-                .recentActivity(adminAnalyticsService.getRecentActivity())     // FIX H-3
+                // PHASE 8: explicit null = platform-wide, matching this endpoint's
+                // purpose (admin overview, not scoped to any one user).
+                .activityData(adminAnalyticsService.getActivityLast7Days(null))   // FIX H-3
+                .categoryData(adminAnalyticsService.getCategoryBreakdown(null))    // FIX H-3
+                .recentActivity(adminAnalyticsService.getRecentActivity(null))     // FIX H-3
                 .build();
 
         return ResponseEntity.ok(ApiResult.success(dashboardData, "Dashboard fetched successfully"));

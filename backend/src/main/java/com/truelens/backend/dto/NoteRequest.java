@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * Request payload for creating or updating a note.
  * ✅ FIX: Added missing `category` and `tags` fields.
@@ -29,9 +31,12 @@ public class NoteRequest {
     @Schema(description = "Category of the note", example = "Work")
     private String category;
 
-    // ✅ ADDED: matches Note model field (stored as comma-separated string)
-    @Schema(description = "Tags for the note", example = "java,spring,todo")
-    private String tags;
+    // FIX M-8: was a comma-separated String — modeled as a proper list now, matching
+    // the Note model and the frontend's string[] usage. @Size caps the tag count to
+    // keep a malicious client from attaching thousands of tags to one note.
+    @Size(max = 20, message = "A note can have at most 20 tags")
+    @Schema(description = "Tags for the note", example = "[\"java\", \"spring\", \"todo\"]")
+    private List<String> tags;
 
     // Optional helpers
     public String getTitleTrimmed() {

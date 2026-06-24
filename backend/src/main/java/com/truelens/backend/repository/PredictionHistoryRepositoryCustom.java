@@ -12,6 +12,13 @@ import java.util.List;
  *   countLast7Days()          → [Integer dayOfWeek(1=Sun…7=Sat), Long count]
  *   averageConfidence()       → Double (nullable)
  *   countByCategoryAndResult()→ [String category, PredictionResult result, Long count]
+ *
+ * PHASE 8: user-scoped variants of the last two, added so the regular (non-admin)
+ * dashboard can show the logged-in user's own activity/category breakdown instead
+ * of the platform-wide aggregate every user was previously shown.
+ *
+ *   countLast7DaysForUser(userId)             → same shape as countLast7Days()
+ *   countByCategoryAndResultForUser(userId)   → same shape as countByCategoryAndResult()
  */
 public interface PredictionHistoryRepositoryCustom {
 
@@ -24,4 +31,8 @@ public interface PredictionHistoryRepositoryCustom {
     Double averageConfidence();
 
     List<Object[]> countByCategoryAndResult();
+
+    List<Object[]> countLast7DaysForUser(String userId);
+
+    List<Object[]> countByCategoryAndResultForUser(String userId);
 }

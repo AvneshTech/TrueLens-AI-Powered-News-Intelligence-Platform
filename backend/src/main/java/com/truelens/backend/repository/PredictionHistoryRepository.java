@@ -24,5 +24,13 @@ public interface PredictionHistoryRepository
 
     long countByUserId(String userId);
 
+    // PHASE 8: per-user scoped counterpart to countByResult — needed so the regular
+    // (non-admin) dashboard shows the logged-in user's own fake/real split instead
+    // of the platform-wide total every user was previously shown.
+    long countByUserIdAndResult(String userId, PredictionResult result);
+
     List<PredictionHistory> findTop5ByOrderByCreatedAtDesc();
+
+    // PHASE 8: per-user scoped counterpart for the regular dashboard's recent-activity feed.
+    List<PredictionHistory> findTop5ByUserIdOrderByCreatedAtDesc(String userId);
 }

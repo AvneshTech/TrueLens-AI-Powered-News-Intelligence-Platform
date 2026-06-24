@@ -1,22 +1,26 @@
 package com.truelens.backend.security;
 
-import java.util.Arrays;
-import java.util.List;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -54,6 +58,9 @@ public class SecurityConfig {
                                 "/ws/**",
                                 "/webjars/**",
                                 "/api/news/**",
+                                // PHASE 7: a shared note's whole point is that the recipient
+                                // doesn't need a TrueLens account to view it.
+                                "/api/public/**",
                                 "/")
                         .permitAll()
 
@@ -62,7 +69,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**")
-                        .permitAll() // ✅ Allow Swagger for all (can be restricted to ADMIN in prod)
+                        .permitAll()
 
                         // ✅ Admin routes
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -73,7 +80,7 @@ public class SecurityConfig {
                 // ✅ Rate limit runs first, then JWT auth
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
- 
+
         return http.build();
     }
 

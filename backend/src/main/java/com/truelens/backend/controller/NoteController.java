@@ -97,6 +97,27 @@ public class NoteController {
         return ApiResult.success(notes, "Notes retrieved successfully");
     }
 
+    // ─── PHASE 7: sharing ───────────────────────────────────────────────────
+    @PostMapping("/{id}/share")
+    public ApiResult<NoteResponse> shareNote(
+            @PathVariable String id,
+            Authentication auth) {
+
+        return ApiResult.success(
+                noteService.shareNote(id, auth.getName()),
+                "Note is now shared");
+    }
+
+    @DeleteMapping("/{id}/share")
+    public ApiResult<NoteResponse> unshareNote(
+            @PathVariable String id,
+            Authentication auth) {
+
+        return ApiResult.success(
+                noteService.unshareNote(id, auth.getName()),
+                "Sharing revoked");
+    }
+
     // ✅ FIX: REMOVED the incorrectly nested AnalyticsController inner class.
     // It conflicted with the standalone AnalyticsController.java causing a
     // Spring duplicate bean mapping error at startup.

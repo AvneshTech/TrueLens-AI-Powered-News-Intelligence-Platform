@@ -43,20 +43,50 @@ public class AdminAnalyticsService {
                 .build();
     }
 
+    /**
+     * PHASE 8: per-user counterpart to getAnalytics() — powers the regular (non-admin)
+     * dashboard. Deliberately omits totalUsers (a platform-wide figure that has no
+     * per-user meaning); totalPredictions/fakeNews/realNews are scoped to this user
+     * only, fixing a real bug where every user's personal dashboard was previously
+     * showing platform-wide totals across all users.
+     */
+    public AdminAnalytics getAnalyticsForUser(String userId) {
+        long totalPredictions = predictionRepository.countByUserId(userId);
+        long fakeNews = predictionRepository.countByUserIdAndResult(userId, PredictionResult.FAKE);
+        long realNews = predictionRepository.countByUserIdAndResult(userId, PredictionResult.REAL);
+
+        return AdminAnalytics.builder()
+                .totalUsers(0) // not meaningful per-user; AnalyticsController omits this stat card
+                .totalPredictions(totalPredictions)
+                .fakeNews(fakeNews)
+                .realNews(realNews)
+                .build();
+    }
+
     // ──────────────────────────────────────────────────────────────
     // FIX H-3: real analytics builders shared by the user dashboard
     // (AnalyticsController) and the admin dashboard (AdminController).
     // These replace the previously fabricated activity/category data.
+    //
+    // PHASE 8: each now takes an optional userId — null means platform-wide
+    // (used by the admin dashboard), a real id scopes the result to that user
+    // (used by the regular dashboard). Previously these were always
+    // platform-wide, so every regular user's "personal" dashboard was actually
+    // showing every user's combined activity, including other users' article
+    // titles in the recent-activity feed.
     // ──────────────────────────────────────────────────────────────
 
     /**
-     * Real last-7-day activity series, one entry per weekday (Mon→Sun).
-     * Sources the native DAYOFWEEK(created_at) aggregate (1=Sun … 7=Sat).
+     * Last-7-day activity series, one entry per weekday (Mon→Sun).
+     * Sources the $dayOfWeek aggregate (1=Sun … 7=Sat, same numbering MySQL used).
      */
-    public List<Map<String, Object>> getActivityLast7Days() {
-        // MySQL DAYOFWEEK: 1=Sun, 2=Mon, … 7=Sat → map to a count per day
+    public List<Map<String, Object>> getActivityLast7Days(String userId) {
+        List<Object[]> rows = userId == null
+                ? predictionRepository.countLast7Days()
+                : predictionRepository.countLast7DaysForUser(userId);
+
         Map<Integer, Long> byDow = new HashMap<>();
-        for (Object[] row : predictionRepository.countLast7Days()) {
+        for (Object[] row : rows) {
             int dow = ((Number) row[0]).intValue();
             long count = ((Number) row[1]).longValue();
             byDow.put(dow, count);
@@ -77,13 +107,17 @@ public class AdminAnalyticsService {
     }
 
     /**
-     * Real category breakdown grouped from stored predictions.
+     * Category breakdown grouped from stored predictions.
      * Replaces the invented Politics/Tech/Health arithmetic split.
      */
-    public List<Map<String, Object>> getCategoryBreakdown() {
+    public List<Map<String, Object>> getCategoryBreakdown(String userId) {
+        List<Object[]> rows = userId == null
+                ? predictionRepository.countByCategoryAndResult()
+                : predictionRepository.countByCategoryAndResultForUser(userId);
+
         Map<String, long[]> byCategory = new LinkedHashMap<>(); // [fake, real]
 
-        for (Object[] row : predictionRepository.countByCategoryAndResult()) {
+        for (Object[] row : rows) {
             String category = row[0] != null ? row[0].toString() : "Uncategorized";
             PredictionResult result = (PredictionResult) row[1];
             long count = ((Number) row[2]).longValue();
@@ -108,11 +142,16 @@ public class AdminAnalyticsService {
     }
 
     /**
-     * Five most recent predictions across the platform for the admin feed.
+     * Five most recent predictions — platform-wide (userId null, admin feed) or
+     * scoped to one user (regular dashboard).
      */
-    public List<Map<String, Object>> getRecentActivity() {
+    public List<Map<String, Object>> getRecentActivity(String userId) {
+        List<PredictionHistory> recentPredictions = userId == null
+                ? predictionRepository.findTop5ByOrderByCreatedAtDesc()
+                : predictionRepository.findTop5ByUserIdOrderByCreatedAtDesc(userId);
+
         List<Map<String, Object>> recent = new ArrayList<>();
-        for (PredictionHistory p : predictionRepository.findTop5ByOrderByCreatedAtDesc()) {
+        for (PredictionHistory p : recentPredictions) {
             Map<String, Object> map = new HashMap<>();
             map.put("title", p.getNewsTitle());
             map.put("result", p.getResult() != null ? p.getResult().name() : "UNKNOWN");

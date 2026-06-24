@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+
 
 /**
  * FIX #5: Rate limiting on sensitive endpoints.
@@ -34,6 +34,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final int AUTH_MAX_PER_MINUTE   = 10;
     private static final int DETECT_MAX_PER_MINUTE = 20;
+    // PHASE 6: /detect/url and /detect/file do real outbound I/O (page fetch, file
+    // parsing) on top of the ML call itself — tighter than plain text /detect, and
+    // matches the ML service's own HEAVY_RATE_LIMIT bucket for the same routes.
+    private static final int DETECT_HEAVY_MAX_PER_MINUTE = 10;
+    // PHASE 7: share tokens are 24 random bytes (effectively unguessable), but a
+    // generous-but-finite limit still costs an attacker real time even in the
+    // astronomically unlikely event they try to brute-force one.
+    private static final int PUBLIC_NOTE_MAX_PER_MINUTE = 30;
     private static final long WINDOW_MS             = 60_000L;
 
     // Key: "ip:path-bucket"  →  [count, windowStart]
@@ -84,9 +92,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (path.equals("/api/detect")) {
             return DETECT_MAX_PER_MINUTE;
         }
+        if (path.equals("/api/detect/url") || path.equals("/api/detect/file")) {
+            return DETECT_HEAVY_MAX_PER_MINUTE;
+        }
         // FIX C-4: the AI chat + sentiment endpoints proxy paid inference — rate limit them too.
         if (path.equals("/api/chat") || path.equals("/api/chat/stream") || path.equals("/api/sentiment")) {
             return DETECT_MAX_PER_MINUTE;
+        }
+        // PHASE 7: variable {shareToken} segment, so startsWith rather than equals.
+        if (path.startsWith("/api/public/notes/")) {
+            return PUBLIC_NOTE_MAX_PER_MINUTE;
         }
         return 0; // no limit on other paths
     }

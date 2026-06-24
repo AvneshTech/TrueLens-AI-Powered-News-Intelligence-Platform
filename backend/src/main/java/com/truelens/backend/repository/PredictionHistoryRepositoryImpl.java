@@ -119,6 +119,46 @@ public class PredictionHistoryRepositoryImpl implements PredictionHistoryReposit
         return out;
     }
 
+    // PHASE 8: user-scoped variants — identical pipelines to countLast7Days() /
+    // countByCategoryAndResult() above, with a $match stage on userId prepended so
+    // a regular user's dashboard reflects their own activity, not every user's.
+    @Override
+    public List<Object[]> countLast7DaysForUser(String userId) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(7);
+
+        Aggregation agg = newAggregation(
+                match(Criteria.where("userId").is(userId).and("createdAt").gte(cutoff)),
+                project().and(DateOperators.DayOfWeek.dayOfWeek("createdAt")).as("dow"),
+                group("dow").count().as("count")
+        );
+
+        List<Object[]> out = new ArrayList<>();
+        for (Document d : run(agg)) {
+            int dow = ((Number) d.get("_id")).intValue();
+            long count = ((Number) d.get("count")).longValue();
+            out.add(new Object[]{dow, count});
+        }
+        return out;
+    }
+
+    @Override
+    public List<Object[]> countByCategoryAndResultForUser(String userId) {
+        Aggregation agg = newAggregation(
+                match(Criteria.where("userId").is(userId)),
+                group("category", "result").count().as("count")
+        );
+
+        List<Object[]> out = new ArrayList<>();
+        for (Document d : run(agg)) {
+            Document id = (Document) d.get("_id");
+            Object category = id != null ? id.get("category") : null;
+            PredictionResult result = toResult(id != null ? id.get("result") : null);
+            long count = ((Number) d.get("count")).longValue();
+            out.add(new Object[]{category, result, count});
+        }
+        return out;
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
     private List<Document> run(Aggregation agg) {
         AggregationResults<Document> results =

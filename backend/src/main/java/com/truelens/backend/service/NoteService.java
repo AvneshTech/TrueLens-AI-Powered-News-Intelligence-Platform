@@ -2,6 +2,8 @@ package com.truelens.backend.service;
 
 import com.truelens.backend.dto.NoteRequest;
 import com.truelens.backend.dto.NoteResponse;
+import com.truelens.backend.dto.PublicNoteResponse;
+import com.truelens.backend.exception.ApiException;
 import com.truelens.backend.model.Note;
 import com.truelens.backend.model.User;
 import com.truelens.backend.repository.NoteRepository;
@@ -13,12 +15,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+
+import java.security.SecureRandom;
+import java.util.Base64;
 
 @Service
 public class NoteService {
 
     private static final Logger logger = LoggerFactory.getLogger(NoteService.class);
+
+    // PHASE 7: 24 random bytes -> 32 url-safe base64 chars, no padding. Long enough
+    // that brute-forcing a live share link is computationally infeasible, and
+    // url-safe so it drops straight into a path segment with no encoding needed.
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final NoteRepository noteRepository;
     private final UserRepository userRepository;
@@ -120,6 +131,64 @@ public class NoteService {
                 .map(this::mapToResponse);
     }
 
+    // ─── PHASE 7: sharing ───────────────────────────────────────────────────
+
+    /**
+     * Generates (or returns the existing) share token and marks the note public.
+     * Idempotent while already shared — calling this again on an already-public
+     * note does NOT rotate the token, so an owner re-opening the share dialog
+     * doesn't accidentally invalidate a link they already sent someone.
+     */
+    public NoteResponse shareNote(String id, String email) {
+        Note note = noteRepository.findByIdAndUserEmail(id, email)
+                .orElseThrow(() -> new RuntimeException("Note not found"));
+
+        if (!note.isShared() || note.getShareToken() == null) {
+            note.setShareToken(generateShareToken());
+            note.setShared(true);
+            note = noteRepository.save(note);
+        }
+
+        return mapToResponse(note);
+    }
+
+    /**
+     * Revokes sharing. Clears the token entirely (not just the isPublic flag) so a
+     * later re-share always mints a fresh link — see the comment on Note.shareToken
+     * for why reusing the old token after a revoke would be unsafe.
+     */
+    public NoteResponse unshareNote(String id, String email) {
+        Note note = noteRepository.findByIdAndUserEmail(id, email)
+                .orElseThrow(() -> new RuntimeException("Note not found"));
+
+        note.setShared(false);
+        note.setShareToken(null);
+        Note updated = noteRepository.save(note);
+
+        return mapToResponse(updated);
+    }
+
+    /** Public, unauthenticated lookup by share token — used by PublicNoteController. */
+    public PublicNoteResponse getPublicNote(String shareToken) {
+        Note note = noteRepository.findByShareTokenAndSharedTrue(shareToken)
+                .orElseThrow(() -> new ApiException(
+                        "This share link is invalid or has been revoked", HttpStatus.NOT_FOUND));
+
+        return PublicNoteResponse.builder()
+                .title(note.getTitle())
+                .content(note.getContent())
+                .category(note.getCategory())
+                .tags(note.getTags())
+                .createdAt(note.getCreatedAt())
+                .build();
+    }
+
+    private String generateShareToken() {
+        byte[] bytes = new byte[24];
+        SECURE_RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
     // ✅ MAPPER
     private NoteResponse mapToResponse(Note note) {
         return NoteResponse.builder()
@@ -128,7 +197,11 @@ public class NoteService {
                 .content(note.getContent())
                 .category(note.getCategory())
                 .tags(note.getTags())
+                .userEmail(note.getUserEmail())
                 .createdAt(note.getCreatedAt())
+                .updatedAt(note.getUpdatedAt())
+                .shared(note.isShared())
+                .shareToken(note.getShareToken())
                 .build();
     }
 }

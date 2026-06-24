@@ -76,6 +76,16 @@ public class GlobalExceptionHandler {
         return wrap(false, "Database error", null, HttpStatus.CONFLICT);
     }
 
+    // PHASE 6: client-facing validation/extraction problems (bad URL, unsupported file
+    // type, too-short extracted text, …) are surfaced as IllegalArgumentException —
+    // without this handler they'd fall through to the generic 500 catch-all below and
+    // lose the actionable message the ML service provided.
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResult<Void>> handleIllegalArgument(IllegalArgumentException ex) {
+        logger.warn("Bad request: {}", ex.getMessage());
+        return wrap(false, ex.getMessage(), null, HttpStatus.BAD_REQUEST);
+    }
+
     // ✅ 6. Catch-all (LAST)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResult<Void>> handleAll(Exception ex) {
