@@ -7,7 +7,12 @@
  * buttons that have no business appearing in an exported document.
  */
 import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
+// NOTE: html2canvas-pro (drop-in fork) is used instead of html2canvas because the
+// app's Tailwind v4 theme defines colors with the oklch() CSS function. The stock
+// html2canvas parses every stylesheet on the page and throws
+// "Attempting to parse an unsupported color function 'oklch'", breaking PDF/PNG/JPG
+// export. html2canvas-pro has the same API but understands oklch/lab/lch/color().
+import html2canvas from "html2canvas-pro";
 
 export interface ExportableNote {
   title: string;
