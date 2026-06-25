@@ -196,8 +196,13 @@ export const Notes = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${note.title}.txt`;
+    a.download = `${note.title || "note"}.txt`;
+    // ✅ FIX: the anchor must be attached to the DOM before .click() or the download
+    // silently does nothing in Firefox (and some Chromium builds). Matches the
+    // robust pattern used by downloadDataUrl() in lib/noteExport.ts.
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(url);
   };
 

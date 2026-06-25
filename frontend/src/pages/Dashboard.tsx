@@ -40,11 +40,10 @@ import { apiService, DashboardRecentActivity } from "../services/apiService";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { useQuery } from "@tanstack/react-query";
+import { getWebSocketUrl } from "../utils/websocket";
 
-// PHASE 8: was hardcoded to http://localhost:8080 — broke in every non-local
-// deployment. Mirrors the same env-driven pattern NotificationContext already uses.
-const WS_URL =
-  (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080") + "/ws";
+// WS endpoint is resolved centrally (normalized, scheme-correct) in config/env.ts.
+const WS_URL = getWebSocketUrl();
 
 // Map of icons for dynamic stats
 const iconMap: Record<string, any> = {

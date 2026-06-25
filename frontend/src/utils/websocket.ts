@@ -1,18 +1,11 @@
+import { WS_URL } from "../config/env";
+
+/**
+ * Returns the SockJS endpoint URL, derived centrally in config/env.ts from the
+ * backend origin. Guaranteed to be normalized (no double `//ws`) and to share the
+ * backend's scheme (https -> SockJS upgrades to wss), avoiding the
+ * "insecure SockJS connection ... over HTTPS" error.
+ */
 export function getWebSocketUrl(): string {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL;
-
-  if (baseUrl) {
-    try {
-      const url = new URL(baseUrl);
-      return `${url.origin}/ws`;
-    } catch {
-      return `${baseUrl.replace(/\/+$/, "")}/ws`;
-    }
-  }
-
-  if (typeof window !== "undefined") {
-    return `${window.location.origin}/ws`;
-  }
-
-  return "/ws";
+  return WS_URL;
 }

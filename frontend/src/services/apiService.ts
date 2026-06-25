@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
+import { API_ORIGIN } from "../config/env";
 
 // ────────────────────────────────────────────────────────────────────────────
 // TYPES  (matched exactly to backend DTOs)
@@ -160,7 +161,8 @@ export interface ChatMessageItem {
 // ────────────────────────────────────────────────────────────────────────────
 // CONFIG
 // ────────────────────────────────────────────────────────────────────────────
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+// BASE_URL is the bare backend origin, resolved centrally in config/env.ts.
+const BASE_URL = API_ORIGIN;
 
 function getToken(): string | null {
   return localStorage.getItem("token") || sessionStorage.getItem("token");

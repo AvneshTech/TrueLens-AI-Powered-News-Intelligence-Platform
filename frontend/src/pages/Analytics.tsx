@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import API from "../services/api";
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area,
@@ -32,10 +33,12 @@ export const Analytics = () => {
     setLoading(true);
     setError(false);
 
-    fetch(`${import.meta.env.VITE_API_URL}/analytics`)
-      .then(res => res.json())
+    // ✅ FIX: /api/analytics now requires authentication, so it must go through the
+    // shared axios instance (which attaches the JWT + uses the central base URL).
+    // The previous raw fetch() sent no Authorization header → 403 in production.
+    API.get("/analytics")
       .then(res => {
-        setData(res);
+        setData(res.data);
         setLoading(false);
       })
       .catch(() => {

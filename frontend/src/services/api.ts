@@ -1,9 +1,10 @@
 import axios from "axios";
+import { API_URL } from "../config/env";
 
-// ✅ Axios instance — reads VITE_API_URL from .env
-// Set VITE_API_URL=http://localhost:8080/api in your .env file
+// ✅ Axios instance — base URL is derived centrally in config/env.ts from
+// VITE_API_BASE_URL (or VITE_API_URL), normalized and with "/api" appended.
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: API_URL,
 });
 
 // ✅ Request interceptor — attaches JWT token to every request
