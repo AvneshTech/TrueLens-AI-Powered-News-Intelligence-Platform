@@ -34,25 +34,29 @@ const buttonVariants = cva(
   },
 );
 
-function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
-  }) {
+// Wrapped in forwardRef so Radix `asChild` triggers (DropdownMenu, Dialog,
+// Tooltip, etc.) can attach a ref to anchor the popup. Without ref forwarding,
+// React 18 silently drops the ref Radix passes when cloning <Button>, so the
+// three-dot dropdown menu (and any asChild-triggered popup) never opens.
+// forwardRef is safe on React 19 as well.
+const Button = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<"button"> &
+    VariantProps<typeof buttonVariants> & {
+      asChild?: boolean;
+    }
+>(({ className, variant, size, asChild = false, ...props }, ref) => {
   const Comp = asChild ? Slot : "button";
 
   return (
     <Comp
       data-slot="button"
+      ref={ref}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
   );
-}
+});
+Button.displayName = "Button";
 
 export { Button, buttonVariants };
