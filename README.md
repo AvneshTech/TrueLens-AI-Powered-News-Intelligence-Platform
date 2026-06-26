@@ -555,8 +555,6 @@ If you found this project useful:
 
 ⭐ Star the repository
 
-🍴 Fork the project
-
 🛠️ Contribute improvements
 
 📢 Share with others
