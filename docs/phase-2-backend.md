@@ -83,7 +83,7 @@ Responsible for communication with external AI services.
 ### Features
 
 - Fake News Detection
-- URL Verification
+- URL, PDF, DOCX, JPG Verification
 - Sentiment Analysis
 - Fact Checking
 - Confidence Score Generation
@@ -308,7 +308,8 @@ GET /api/analytics/admin
 Swagger/OpenAPI documentation integrated.
 
 ```text
-http://localhost:8080/swagger-ui/index.html
+http://localhost:8080/swagger-ui/index.html ||
+https://truelens-backend-hdip.onrender.com/swagger-ui.html
 ```
 
 ---
