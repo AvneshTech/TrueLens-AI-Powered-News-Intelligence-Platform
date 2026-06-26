@@ -10,7 +10,7 @@ Make sure you have installed:
 - Maven 3.9+
 - Node.js 20+
 - Python 3.10+
-- MongoDB Atlas Account
+- MongoDB Atlas Account Or MongoDB Compass Installed
 - Git
 
 ---
