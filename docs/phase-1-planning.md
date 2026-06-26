@@ -47,6 +47,7 @@ into a single intelligent platform.
 - Sentiment Analysis
 - Fact Checking
 - Prediction Confidence Scores
+- Docx, PDF, JPG Article verification
 
 ---
 
